@@ -1,0 +1,28 @@
+/* BECOMING design tokens — Soft Futurism · Quiet Luxury · Ambient Intelligence */
+:root {
+  --c-lavender: #a99acb;
+  --c-gold: #e9d8b4;
+  --c-ivory: #f7f3ed;
+  --c-mist: #dccfe8;
+  --c-plum: #645b7c;
+  --c-ink: #302b3d;
+  --c-ink-soft: #5f5873;
+  --glass: rgba(255, 255, 255, 0.24);
+  --glass-strong: rgba(255, 255, 255, 0.46);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --shadow-soft: 0 10px 40px -18px rgba(70, 55, 110, 0.35);
+  --bg-aurora:
+    radial-gradient(1200px 700px at 0% 0%, #f5e9db 0%, transparent 55%),
+    radial-gradient(900px 700px at 100% 10%, #e4d8f0 0%, transparent 60%),
+    radial-gradient(1000px 800px at 60% 100%, #cdbfe2 0%, transparent 60%),
+    linear-gradient(160deg, #f7f3ed 0%, #e9dfee 45%, #d8cbe6 100%);
+  color-scheme: light;
+}
+/* Evening theme: deeper, calmer — still readable */
+:root[data-daypart='evening'] {
+  --bg-aurora:
+    radial-gradient(1000px 700px at 10% 0%, #e7d9e3 0%, transparent 55%),
+    radial-gradient(900px 700px at 100% 20%, #c9bde0 0%, transparent 60%),
+    radial-gradient(1000px 800px at 50% 100%, #b5a6d1 0%, transparent 60%),
+    linear-gradient(170deg, #ece4ee 0%, #d6cbe5 50%, #c2b5da 100%);
+}
