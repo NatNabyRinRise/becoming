@@ -319,6 +319,10 @@ export interface WriteBackEvent {
   /** pending = waiting in the outbox, sent = acknowledged by the source adapter. */
   delivery: 'pending' | 'sent' | 'failed'
   sentAt: ISOTime | null
+  /** Which source adapter the answered record came from ('mock' | 'notion'). Missing = 'mock'. */
+  via?: string
+  /** Last delivery error, if any. */
+  error?: string | null
 }
 
 /** Persisted orchestration state (lives inside DomainState.orchestration). */

@@ -68,11 +68,13 @@ export function pendingEvents(s: OrchestrationState): WriteBackEvent[] {
   return s.events.filter((e) => e.delivery !== 'sent')
 }
 
-export function markDelivered(s: OrchestrationState, sent: string[], failed: string[], now: Date): OrchestrationState {
+export function markDelivered(s: OrchestrationState, sent: string[], failed: (string | { id: string; error: string })[], now: Date): OrchestrationState {
   const sentSet = new Set(sent)
-  const failSet = new Set(failed)
+  const failMap = new Map(failed.map((f) => (typeof f === 'string' ? [f, null] : [f.id, f.error])))
   const at = now.toISOString()
-  const events = s.events.map((e) => (sentSet.has(e.id) ? { ...e, delivery: 'sent' as const, sentAt: at } : failSet.has(e.id) ? { ...e, delivery: 'failed' as const } : e))
+  const events = s.events.map((e) =>
+    sentSet.has(e.id) ? { ...e, delivery: 'sent' as const, sentAt: at, error: null } : failMap.has(e.id) ? { ...e, delivery: 'failed' as const, error: failMap.get(e.id) ?? null } : e,
+  )
   const sentSuggestionIds = new Set(events.filter((e) => sentSet.has(e.id) && e.payload.kind === 'suggestion').map((e) => (e.payload.kind === 'suggestion' ? e.payload.suggestion.id : '')))
   return {
     ...s,

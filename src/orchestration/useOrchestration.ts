@@ -6,7 +6,7 @@ import { useCore } from '../intelligence/useCore'
 import { addDays } from '../utils/date'
 import type { DayItem } from '../engine/scheduling/day'
 import type { AttentionItem, BusinessContext, PersonalContext, RoleId, SourceRef, WriteBackPayload } from './types'
-import { activeAdapter, activeSink } from './sources'
+import { loadContext, sinkFor, type SourceStatus } from './sources'
 import { buildQueue, type Queue } from './roles/j'
 import { makeEvent, makeSuggestion, markDelivered, pendingEvents, recordEvent } from './writeback'
 
@@ -14,6 +14,7 @@ import { makeEvent, makeSuggestion, markDelivered, pendingEvents, recordEvent } 
 
 interface SourcesState {
   ctx: BusinessContext | null
+  status: SourceStatus | null
   loading: boolean
   error: string | null
   load: (today: string) => Promise<void>
@@ -21,14 +22,17 @@ interface SourcesState {
 
 export const useSources = create<SourcesState>((set, get) => ({
   ctx: null,
+  status: null,
   loading: false,
   error: null,
   load: async (today) => {
     if (get().loading) return
     set({ loading: true, error: null })
     try {
-      const ctx = await activeAdapter().load({ today, now: new Date() })
-      set({ ctx, loading: false })
+      const { ctx, status } = await loadContext(today, new Date())
+      set({ ctx, status, loading: false })
+      // answers waiting for this source can go now
+      void sendOutbox()
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })
     }
@@ -86,6 +90,7 @@ export function useAttention(): { ctx: BusinessContext | null; personal: Persona
 // ── Actions (write-back) ─────────────────────────────────────────────────────
 
 const st = () => useStore.getState()
+const currentVia = () => useSources.getState().ctx?.adapter ?? 'mock'
 const setOrch = (fn: (o: ReturnType<typeof st>['orchestration']) => ReturnType<typeof st>['orchestration']) =>
   useStore.setState((s) => ({ orchestration: fn(s.orchestration) }))
 
@@ -97,8 +102,18 @@ export function sendOutbox(): Promise<void> {
     try {
       const pending = pendingEvents(st().orchestration)
       if (pending.length === 0) return
-      const r = await activeSink().deliver(pending)
-      setOrch((o) => markDelivered(o, r.sent, r.failed.map((f) => f.id), st().now()))
+      const live = useSources.getState().status?.adapter ?? null
+      const groups = new Map<string, typeof pending>()
+      for (const e of pending) {
+        const via = e.via ?? 'mock'
+        // Notion answers wait in the outbox until Notion is reachable again
+        if (via === 'notion' && live !== 'notion') continue
+        groups.set(via, [...(groups.get(via) ?? []), e])
+      }
+      for (const [via, evs] of groups) {
+        const r = await sinkFor(via).deliver(evs)
+        setOrch((o) => markDelivered(o, r.sent, r.failed, st().now()))
+      }
     } finally {
       sending = null
     }
@@ -113,7 +128,7 @@ export function answer(item: AttentionItem, payload: WriteBackPayload): void {
   const s = st()
   const now = s.now()
   const today = s.today()
-  const e = makeEvent({ target: item.ref, title: item.title, payload, now, localDate: today })
+  const e = { ...makeEvent({ target: item.ref, title: item.title, payload, now, localDate: today }), via: currentVia() }
   setOrch((o) => {
     let next = recordEvent(o, e)
     if (payload.kind === 'action' && payload.outcome === 'deferred') next = { ...next, snoozed: { ...next.snoozed, [item.key]: addDays(today, 1) } }
@@ -140,7 +155,7 @@ export function delayItems(items: AttentionItem[], note = 'Rescue Mode: เล�
     let next = { ...o, snoozed: { ...o.snoozed } }
     for (const it of items) {
       next.snoozed[it.key] = until
-      if (it.type === 'do') next = recordEvent(next, makeEvent({ target: it.ref, title: it.title, payload: { kind: 'action', outcome: 'deferred', note }, now, localDate: today }))
+      if (it.type === 'do') next = recordEvent(next, { ...makeEvent({ target: it.ref, title: it.title, payload: { kind: 'action', outcome: 'deferred', note }, now, localDate: today }), via: currentVia() })
     }
     return next
   })
@@ -152,12 +167,12 @@ export function suggestToCompany(args: { title: string; rationale: string; propo
   const s = st()
   const now = s.now()
   const sg = makeSuggestion({ ...args, relatedTo: args.relatedTo ?? null, now })
-  const e = makeEvent({ target: args.relatedTo ?? null, title: sg.title, payload: { kind: 'suggestion', suggestion: sg }, now, localDate: s.today() })
+  const e = { ...makeEvent({ target: args.relatedTo ?? null, title: sg.title, payload: { kind: 'suggestion', suggestion: sg }, now, localDate: s.today() }), via: currentVia() }
   setOrch((o) => ({ ...recordEvent(o, e), suggestions: [...o.suggestions, sg] }))
   void sendOutbox()
 }
 
 export function reloadSources(): Promise<void> {
-  useSources.setState({ ctx: null, error: null })
+  useSources.setState({ ctx: null, status: null, error: null })
   return useSources.getState().load(st().today())
 }

@@ -8,7 +8,8 @@ import { reloadSources, sendOutbox, suggestToCompany, useAttention } from '../..
 import { weeklySynthesis } from '../../orchestration/roles/j'
 import { learningSignals } from '../../orchestration/roles/nexus'
 import { outcomeLabel, pendingEvents } from '../../orchestration/writeback'
-import { activeAdapter } from '../../orchestration/sources'
+import { adapterLabel, setSourcePreference, sourcePreference } from '../../orchestration/sources'
+import { useSources } from '../../orchestration/useOrchestration'
 import type { RoleId } from '../../orchestration/types'
 import { RoleChips } from './AttentionUI'
 
@@ -37,6 +38,8 @@ const ROLES: { id: RoleId; does: string }[] = [
 /** AI Company Link: sources BECOMING reads, Weekly CEO Review synthesis, and the write-back outbox. */
 export function CompanyLinkPage() {
   const { ctx, queue, loading } = useAttention()
+  const status = useSources((x) => x.status)
+  const pref = sourcePreference()
   const orch = useStore((s) => s.orchestration)
   const toast = useUI((u) => u.showToast)
   const [title, setTitle] = useState('')
@@ -60,7 +63,7 @@ export function CompanyLinkPage() {
 
       <section className="glass rounded-[1.75rem] p-4">
         <div className="flex items-center justify-between">
-          <p className="label">แหล่งข้อมูล · {activeAdapter().label}</p>
+          <p className="label">แหล่งข้อมูล · {adapterLabel(ctx?.adapter ?? 'mock')}</p>
           <button className="btn btn-ghost !min-h-0 !px-2 !py-1 text-xs" onClick={() => void reloadSources().then(() => toast('โหลดข้อมูลใหม่แล้ว'))} disabled={loading}><RefreshCw size={14} /> โหลดใหม่</button>
         </div>
         <ul className="mt-2 grid grid-cols-2 gap-2">
@@ -72,7 +75,23 @@ export function CompanyLinkPage() {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[11px] text-soft">ตอนนี้ใช้ข้อมูลจำลอง (Local JSON) โครงสร้างพร้อมต่อ Notion / API จริงภายหลังโดยไม่ต้องรื้อ</p>
+        {status?.adapter === 'notion' ? (
+          <p className="mt-2 text-[11px] text-soft">เชื่อม Notion แล้ว · อ่านเฉพาะงานที่ติ๊ก "Ready for BECOMING" · คำตอบของเธอถูกเขียนกลับไปที่หน้าเดิมใน Notion</p>
+        ) : (
+          <div className="mt-2 rounded-2xl bg-white/40 p-3 text-xs">
+            <p>กำลังใช้ข้อมูลจำลอง{status?.fallback ? ` — ${status.fallback.message}` : pref === 'mock' ? ' (เลือกไว้เอง)' : ''}</p>
+            {status?.fallback?.reason === 'not_signed_in' && <p className="mt-1 text-soft">ไปที่ Me → Account & Sync เพื่อเข้าสู่ระบบ</p>}
+          </div>
+        )}
+        <button
+          className="btn btn-ghost mt-2 !min-h-0 !px-2 !py-1 text-xs underline"
+          onClick={() => {
+            setSourcePreference(pref === 'mock' ? 'auto' : 'mock')
+            void reloadSources().then(() => toast(pref === 'mock' ? 'ลองเชื่อม Notion แล้ว' : 'สลับไปใช้ข้อมูลจำลองแล้ว'))
+          }}
+        >
+          {pref === 'mock' ? 'ใช้ข้อมูลจาก Notion' : 'ใช้ข้อมูลจำลองแทน'}
+        </button>
       </section>
 
       {weekly && (
@@ -103,7 +122,7 @@ export function CompanyLinkPage() {
             {[...orch.events].reverse().slice(0, 30).map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white/40 px-3 py-2 text-sm">
                 <span className="min-w-0 truncate">{e.title}</span>
-                <span className="shrink-0 text-xs">{outcomeLabel(e.payload)} · <span className={e.delivery === 'sent' ? 'text-soft' : ''}>{e.delivery === 'sent' ? 'ส่งแล้ว' : e.delivery === 'failed' ? 'ส่งไม่สำเร็จ' : 'รอส่ง'}</span></span>
+                <span className="shrink-0 text-xs">{outcomeLabel(e.payload)} · <span className={e.delivery === 'sent' ? 'text-soft' : ''} title={e.error ?? undefined}>{e.delivery === 'sent' ? `ส่งแล้ว${e.via === 'notion' ? ' (Notion)' : ''}` : e.delivery === 'failed' ? 'ส่งไม่สำเร็จ' : 'รอส่ง'}</span></span>
               </li>
             ))}
           </ul>
