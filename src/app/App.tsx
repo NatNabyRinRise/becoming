@@ -23,6 +23,11 @@ import { SettingsPage } from '../features/settings/SettingsPage'
 import { OnboardingPage } from '../features/onboarding/OnboardingPage'
 import { ExperimentPage } from '../features/experiment/ExperimentPage'
 import { MissionsPage } from '../features/missions/MissionsPage'
+import { AccountPage, SyncConflictSheet } from '../features/account/AccountPage'
+import { CorePage } from '../features/core/CorePage'
+import { startObserver } from '../intelligence/observer'
+import { useCore } from '../intelligence/useCore'
+import { startSync } from '../sync/engine'
 import { useNotifications } from '../hooks/useNotifications'
 import { minutesOfDay } from '../utils/date'
 
@@ -36,6 +41,27 @@ function Shell() {
   const motion = useStore((s) => s.settings.reducedMotion)
   const tz = useStore((s) => s.settings.timezone)
   useNotifications()
+
+  // v0.4: cloud sync + Intelligence Core observer
+  useEffect(() => {
+    const stopObs = startObserver()
+    const stopSync = startSync()
+    return () => {
+      stopObs()
+      stopSync()
+    }
+  }, [])
+
+  // Analyze once per day (and whenever the app opens on a new day)
+  const lastActive = useStore((s) => s.lastActiveDate)
+  useEffect(() => {
+    if (!hydrated) return
+    const t = setTimeout(() => {
+      const s = useStore.getState()
+      useCore.getState().runAnalysis({ tasks: s.tasks, timezone: s.settings.timezone })
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [hydrated, lastActive])
 
   useEffect(() => {
     if (hydrated) touch()
@@ -90,6 +116,9 @@ function Shell() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/missions" element={<MissionsPage />} />
           <Route path="/experiment" element={<ExperimentPage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/core" element={<CorePage />} />
+          <Route path="/capture" element={<CorePage initialTab="capture" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -99,6 +128,7 @@ function Shell() {
       <RescueSheet />
       <OpportunitySheet />
       <ComebackSheet />
+      <SyncConflictSheet />
       <Toast />
     </div>
   )

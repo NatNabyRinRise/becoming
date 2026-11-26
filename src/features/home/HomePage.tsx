@@ -9,6 +9,7 @@ import { useFollowUps, useToday } from '../../hooks/useToday'
 import { homeMessage } from '../../engine/companions'
 import { orbStage, totals } from '../../engine/rewards'
 import { COMPANIONS } from '../../data/seed'
+import { CoreNudge } from '../core/CoreNudge'
 import { daysBetween, greeting, hhmmToMin, thaiShortDate } from '../../utils/date'
 
 export function HomePage() {
@@ -90,6 +91,8 @@ export function HomePage() {
           </button>
         )}
       </section>
+
+      <CoreNudge />
 
       {/* One Thing card */}
       {oneThing && (
