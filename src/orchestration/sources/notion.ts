@@ -70,3 +70,12 @@ export const notionSink: WriteBackSink = {
     }
   },
 }
+
+/**
+ * One-way send from Eve's sandbox (Founder Mode) into Idea Inbox & Lab.
+ * Creates a new page and returns its link. Nothing is read back.
+ */
+export async function pushToNotion(item: { kind: 'project' | 'idea'; title: string; description: string; milestones: { title: string; done: boolean }[]; microTasks: string[] }): Promise<{ url: string | null }> {
+  const r = await invoke<{ url?: string | null }>({ action: 'push', item })
+  return { url: r.url ?? null }
+}
