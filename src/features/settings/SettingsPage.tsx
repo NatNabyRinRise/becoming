@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../sync/useAuth'
 import { Download, Upload, RotateCcw } from 'lucide-react'
 import { PageHeader, Card, Segmented } from '../../components/ui/controls'
 import { Sheet } from '../../components/ui/Sheet'
@@ -22,6 +24,7 @@ const RULE_LABELS: Record<keyof RewardRules, string> = {
 
 export function SettingsPage() {
   const s = useStore()
+  const auth = useAuth((a) => a.status)
   const toast = useUI((u) => u.showToast)
   const file = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
@@ -128,7 +131,12 @@ export function SettingsPage() {
 
       <Card className="space-y-3">
         <h2 className="text-base">ข้อมูลและความเป็นส่วนตัว</h2>
-        <p className="text-sm text-soft">ข้อมูลทั้งหมดเก็บในเบราว์เซอร์ของอุปกรณ์นี้เท่านั้น ไม่ถูกส่งไปที่ไหน ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่อง ข้อมูลจะหาย ควรสำรองไฟล์ไว้เป็นระยะ</p>
+        <p className="text-sm text-soft">
+          {auth === 'signedIn'
+            ? 'ข้อมูลเก็บในเครื่องนี้และซิงก์ขึ้นบัญชีของเธอบน Supabase ใช้ได้ทุกเครื่องที่เข้าสู่ระบบ'
+            : 'ตอนนี้ข้อมูลเก็บในเบราว์เซอร์ของเครื่องนี้เท่านั้น เข้าสู่ระบบเพื่อสำรองขึ้นคลาวด์และใช้หลายเครื่อง'}{' '}
+          <Link to="/account" className="underline">บัญชีและการซิงก์</Link>
+        </p>
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-primary" onClick={doExport}><Download size={16} /> สำรองข้อมูล (JSON)</button>
           <button className="btn btn-soft" onClick={() => file.current?.click()}><Upload size={16} /> นำเข้าข้อมูล</button>
@@ -144,13 +152,13 @@ export function SettingsPage() {
           {INTEGRATIONS.map((i) => (
             <li key={i.id} className="flex items-center justify-between gap-2">
               <span>{i.name}</span>
-              <span className="rounded-full bg-white/50 px-2.5 py-0.5 text-[11px] text-soft">ยังไม่เชื่อมต่อ</span>
+              <span className="rounded-full bg-white/50 px-2.5 py-0.5 text-[11px] text-soft">{i.id === 'supabase' && auth === 'signedIn' ? 'เชื่อมต่อแล้ว' : i.id === 'ai' ? 'อ่านภาพ (ผ่าน Edge Function)' : 'ยังไม่เชื่อมต่อ'}</span>
             </li>
           ))}
         </ul>
         <p className="mt-2 text-[11px] text-soft">เตรียมโครงสร้างรองรับไว้แล้ว ยังไม่มีการเชื่อมต่อจริง และจะไม่เก็บ API key ไว้ในแอปฝั่งหน้าเว็บ</p>
       </Card>
-      <p className="pb-4 text-center text-[11px] text-soft">BECOMING v0.3 · schema v{s.settings.schemaVersion}</p>
+      <p className="pb-4 text-center text-[11px] text-soft">BECOMING v0.4 · schema v{s.settings.schemaVersion}</p>
 
       <Sheet open={!!preview} onClose={() => setPreview(null)} title="ตรวจสอบก่อนนำเข้า">
         {preview && (

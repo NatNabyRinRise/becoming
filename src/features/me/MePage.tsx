@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
-import { Briefcase, BookOpen, Gift, Moon, Settings, CalendarCheck, Target, FlaskConical, Timer, ChevronRight } from 'lucide-react'
+import { Briefcase, BookOpen, Gift, Moon, Settings, CalendarCheck, Target, FlaskConical, Timer, ChevronRight, Brain, Camera, Cloud } from 'lucide-react'
 import { PageHeader } from '../../components/ui/controls'
 import { Orb } from '../../components/graphics/Orb'
 import { useStore } from '../../store/useStore'
 import { level, orbStage, totals } from '../../engine/rewards'
 
 const LINKS = [
+  { to: '/core', label: 'Intelligence Core', th: 'ความจำ คำแนะนำ และการเรียนรู้ของทีม', icon: Brain },
+  { to: '/capture', label: 'อ่านจากภาพ', th: 'ถ่ายรูป/แคปหน้าจอ แล้วให้ทีมบันทึกให้', icon: Camera },
+  { to: '/account', label: 'Account & Sync', th: 'เข้าสู่ระบบ ใช้ได้หลายเครื่อง', icon: Cloud },
   { to: '/founder', label: 'Founder Mode', th: 'ธุรกิจ แบรนด์ พาร์ทเนอร์ รายได้', icon: Briefcase },
   { to: '/missions', label: 'Annual Missions', th: 'ภารกิจและเป้าหมายประจำปี', icon: Target },
   { to: '/journal', label: 'Journal', th: 'บันทึกและไอเดีย', icon: BookOpen },
