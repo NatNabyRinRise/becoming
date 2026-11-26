@@ -90,8 +90,10 @@ function Shell() {
   }, [loc.pathname])
 
   if (!hydrated) return null
-  if (onboarding === 'pending' && loc.pathname !== '/onboarding') return <Navigate to="/onboarding" replace />
-  if (loc.pathname === '/onboarding') return <OnboardingPage />
+  // /account stays reachable before onboarding, so a new device can sign in and pull its data
+  if (onboarding === 'pending' && loc.pathname !== '/onboarding' && loc.pathname !== '/account') return <Navigate to="/onboarding" replace />
+  // a home-screen icon saved on the onboarding screen must not replay onboarding once it is done
+  if (loc.pathname === '/onboarding') return onboarding === 'pending' ? <OnboardingPage /> : <Navigate to="/" replace />
 
   const focusScreen = loc.pathname === '/focus'
   return (
