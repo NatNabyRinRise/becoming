@@ -20,6 +20,8 @@ interface SourcesState {
   load: (today: string) => Promise<void>
 }
 
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+
 export const useSources = create<SourcesState>((set, get) => ({
   ctx: null,
   status: null,
@@ -31,6 +33,13 @@ export const useSources = create<SourcesState>((set, get) => ({
     try {
       const { ctx, status } = await loadContext(today, new Date())
       set({ ctx, status, loading: false })
+      // Notion asked us to slow down: try again once it has had a minute
+      if (status.fallback?.reason === 'rate_limited' && !retryTimer) {
+        retryTimer = setTimeout(() => {
+          retryTimer = null
+          void reloadSources()
+        }, 60_000)
+      }
       // answers waiting for this source can go now
       void sendOutbox()
     } catch (e) {

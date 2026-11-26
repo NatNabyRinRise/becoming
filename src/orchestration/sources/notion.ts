@@ -6,7 +6,7 @@ import type { BusinessSourceAdapter, WriteBackResult, WriteBackSink } from './ad
  * Real AI Company workspace in Notion, reached through the `notion-bridge`
  * Supabase Edge Function. The Notion token lives only on the server.
  */
-export type UnavailableReason = 'not_signed_in' | 'not_deployed' | 'not_configured' | 'forbidden' | 'error'
+export type UnavailableReason = 'not_signed_in' | 'not_deployed' | 'not_configured' | 'forbidden' | 'rate_limited' | 'error'
 export class SourceUnavailable extends Error {
   reason: UnavailableReason
   constructor(reason: UnavailableReason, message: string) {
@@ -30,6 +30,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     } catch {
       /* ignore */
     }
+    if (status === 429 || detail === 'rate_limited') throw new SourceUnavailable('rate_limited', 'Notion ขอให้พักสักครู่ (อ่านข้อมูลถี่เกินลิมิต) จะลองใหม่เองในอีก 1 นาที')
     if (status === 404) throw new SourceUnavailable('not_deployed', 'ยังไม่ได้ deploy ตัวเชื่อม Notion (notion-bridge)')
     if (status === 503 || detail === 'not_configured') throw new SourceUnavailable('not_configured', 'ยังไม่ได้ใส่ NOTION_TOKEN บน Supabase')
     if (status === 401 || status === 403) throw new SourceUnavailable('forbidden', detail || 'บัญชีนี้ไม่ได้รับสิทธิ์')

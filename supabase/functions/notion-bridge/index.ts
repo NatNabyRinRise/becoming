@@ -45,22 +45,39 @@ function publicKey(): string {
 // ── Notion REST ──────────────────────────────────────────────────────────────
 
 const TOKEN = Deno.env.get('NOTION_TOKEN') ?? ''
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
+
+/** Notion allows about 3 requests/second per integration. Space every call out so we stay under it. */
+let nextSlot = 0
+async function slot() {
+  const now = Date.now()
+  const at = Math.max(now, nextSlot)
+  nextSlot = at + 350
+  if (at > now) await sleep(at - now)
+}
+
+class RateLimited extends Error {}
+
 async function notion(path: string, init: { method?: string; body?: unknown } = {}): Promise<any> {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await slot()
     const r = await fetch(`https://api.notion.com/v1${path}`, {
       method: init.method ?? 'GET',
       headers: { Authorization: `Bearer ${TOKEN}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
       body: init.body ? JSON.stringify(init.body) : undefined,
     })
     if (r.status === 429) {
-      await new Promise((res) => setTimeout(res, 400 * (attempt + 1)))
+      // Notion says how long to wait (seconds); back everyone off, not just this call
+      const wait = Math.min(10, Number(r.headers.get('Retry-After')) || attempt + 1) * 1000
+      nextSlot = Math.max(nextSlot, Date.now() + wait)
+      await r.body?.cancel()
       continue
     }
     const data = await r.json()
     if (!r.ok) throw new Error(`Notion ${r.status}: ${data?.message ?? 'error'}`)
     return data
   }
-  throw new Error('Notion rate limit')
+  throw new RateLimited('Notion rate limit')
 }
 
 async function queryAll(db: string, filter?: unknown): Promise<any[]> {
@@ -404,6 +421,9 @@ async function pushOne(it: any): Promise<{ url: string | null }> {
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
+const LOAD_TTL_MS = 60_000
+const loadCache = new Map<string, { at: number; data: unknown }>()
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
@@ -426,11 +446,18 @@ Deno.serve(async (req) => {
   try {
     if (body.action === 'load') {
       const today = /^\d{4}-\d{2}-\d{2}$/.test(body.today) ? body.today : new Date().toISOString().slice(0, 10)
+      // Several devices / reloads within a minute share one read of Notion.
+      const hit = loadCache.get(today)
+      if (hit && Date.now() - hit.at < LOAD_TTL_MS) return json(hit.data)
       const [companyTasks, ideas, life] = await Promise.all([loadCompanyTasks(), loadIdeas(), loadLife(today)])
       const ceoReview = await loadCeoReview(today, companyTasks)
-      return json({ companyTasks, ideas, life, ceoReview, loadedAt: new Date().toISOString(), adapter: 'notion' })
+      const data = { companyTasks, ideas, life, ceoReview, loadedAt: new Date().toISOString(), adapter: 'notion' }
+      loadCache.clear()
+      loadCache.set(today, { at: Date.now(), data })
+      return json(data)
     }
     if (body.action === 'writeback') {
+      loadCache.clear()
       const events = Array.isArray(body.events) ? body.events.slice(0, 50) : []
       const sent: string[] = []
       const failed: { id: string; error: string }[] = []
@@ -445,10 +472,12 @@ Deno.serve(async (req) => {
       return json({ sent, failed })
     }
     if (body.action === 'push') {
+      loadCache.clear()
       return json(await pushOne(body.item))
     }
     return json({ error: 'unknown action' }, 400)
   } catch (err) {
+    if (err instanceof RateLimited) return json({ error: 'rate_limited' }, 429)
     return json({ error: err instanceof Error ? err.message : String(err) }, 502)
   }
 })
