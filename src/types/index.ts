@@ -82,6 +82,22 @@ export interface Project {
   milestones: Milestone[]
   createdAt: ISOTime
   updatedAt: ISOTime
+  /** Plain-text micro tasks (sandbox). Missing = not edited yet; falls back to linked task titles. */
+  microTasks?: MicroTaskText[]
+  /** Set when pinned to the top of Founder Mode (max 5). */
+  pinnedAt?: ISOTime | null
+  /** Last one-way send to Notion (Idea Inbox & Lab). Nothing syncs back. */
+  notion?: NotionSent | null
+}
+
+export interface MicroTaskText {
+  id: ID
+  title: string
+}
+
+export interface NotionSent {
+  sentAt: ISOTime
+  url: string | null
 }
 
 export interface Task {
@@ -279,6 +295,8 @@ export interface Idea {
   missionId: MissionId | null
   createdAt: ISOTime
   status: 'inbox' | 'converted' | 'archived'
+  /** Last one-way send to Notion (Idea Inbox & Lab). */
+  notion?: NotionSent | null
 }
 
 export interface Partner {

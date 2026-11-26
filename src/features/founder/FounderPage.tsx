@@ -1,23 +1,22 @@
 import { useState } from 'react'
-import { Plus, Star, Trash2, ArrowRightCircle, Check } from 'lucide-react'
+import { Plus, Star, Trash2, Pin, PinOff, Send, X } from 'lucide-react'
 import { PageHeader, Card, Empty, Segmented } from '../../components/ui/controls'
-import { Sheet } from '../../components/ui/Sheet'
 import { Avatar } from '../../components/companions/Avatar'
 import { useStore } from '../../store/useStore'
-import { suggestToCompany } from '../../orchestration/useOrchestration'
+import { pushToNotion } from '../../orchestration/sources/notion'
 import { useUI } from '../../store/useUI'
-import { TaskList, TaskEditor } from './TaskList'
-import { MISSION_META, MISSION_ORDER } from '../../data/seed'
+import { TaskList } from './TaskList'
 import { revenueBySource } from '../../engine/analytics'
-import type { AgentStatus, MissionId, Partner, Project } from '../../types'
+import { uid } from '../../utils/id'
+import { PIN_LIMIT, changedSinceSent, ideaPush, microTasksOf, nextPin, pinnedCount, projectPush, sortProjects } from './sandbox'
+import type { MicroTaskText, Milestone, Partner, Project } from '../../types'
 
-type Tab = 'business' | 'ideas' | 'brand' | 'partners' | 'agents' | 'revenue'
+type Tab = 'business' | 'ideas' | 'brand' | 'partners' | 'revenue'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'business', label: 'ธุรกิจหลัก' },
   { id: 'ideas', label: 'Idea Inbox' },
   { id: 'brand', label: 'Personal Brand' },
   { id: 'partners', label: 'Partners' },
-  { id: 'agents', label: 'Prototype' },
   { id: 'revenue', label: 'Revenue' },
 ]
 
@@ -35,7 +34,6 @@ export function FounderPage() {
       {tab === 'ideas' && <Ideas />}
       {tab === 'brand' && <Brand />}
       {tab === 'partners' && <Partners />}
-      {tab === 'agents' && <Agents />}
       {tab === 'revenue' && <Revenue />}
     </div>
   )
@@ -43,130 +41,186 @@ export function FounderPage() {
 
 function Business() {
   const s = useStore()
-  const [newTask, setNewTask] = useState<string | null>(null)
-  const [editProject, setEditProject] = useState<Project | 'new' | null>(null)
-  const [ms, setMs] = useState('')
-  const primary = s.projects.find((p) => p.isPrimaryBusiness)
-  const supporting = s.projects.filter((p) => !p.isPrimaryBusiness && p.status !== 'done')
+  const toast = useUI((u) => u.showToast)
+  const [title, setTitle] = useState('')
+  const [desc, setDesc] = useState('')
+  const projects = sortProjects(s.projects)
+  const deferred = s.tasks.filter((t) => t.status === 'deferred')
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 rounded-[1.5rem] bg-white/40 p-3">
         <Avatar id="atlas" size={40} />
-        <p className="text-sm">โฟกัสธุรกิจหลักหนึ่งเดียว โปรเจกต์อื่นควรช่วยธุรกิจนี้ ไอเดียที่ไม่เกี่ยวเก็บไว้ใน Idea Inbox ก่อน</p>
+        <p className="text-sm">พื้นที่ทดข้อมูลของเธอเอง จดโปรเจกต์ไว้ก่อน แก้ได้ทุกส่วน อันไหนน่าสนใจค่อยส่งเข้า Notion (ส่งทางเดียว ไม่ดึงกลับ)</p>
       </div>
-      {primary ? (
-        <Card>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="label flex items-center gap-1"><Star size={12} /> Primary Business</p>
-              <h2 className="text-xl">{primary.title}</h2>
-              <p className="mt-1 text-sm text-soft">{primary.description}</p>
-            </div>
-            <button className="btn btn-ghost !px-3 text-xs" onClick={() => setEditProject(primary)}>แก้ไข</button>
-          </div>
-          <div className="mt-4">
-            <p className="label mb-2">Milestones</p>
-            <ul className="space-y-1.5">
-              {primary.milestones.map((m) => (
-                <li key={m.id}>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={m.done} onChange={() => s.toggleMilestone(primary.id, m.id)} />
-                    <span className={m.done ? 'line-through opacity-60' : ''}>{m.title}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (ms.trim()) { s.addMilestone(primary.id, ms.trim()); setMs('') } }}>
-              <input className="field !py-2" placeholder="เพิ่ม milestone" value={ms} onChange={(e) => setMs(e.target.value)} aria-label="เพิ่ม milestone" />
-              <button className="btn btn-soft !px-3" aria-label="เพิ่ม"><Plus size={16} /></button>
-            </form>
-          </div>
-          <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="label">Micro-tasks</p>
-              <button className="btn btn-ghost !min-h-0 !px-3 !py-1 text-xs" onClick={() => setNewTask(primary.id)}><Plus size={14} /> งาน</button>
-            </div>
-            <TaskList tasks={s.tasks.filter((t) => t.projectId === primary.id && t.status !== 'archived')} />
-          </div>
-        </Card>
+
+      <Card>
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!title.trim()) return
+            s.addProject({ title: title.trim(), description: desc.trim(), missionId: 'empire', microTasks: [] })
+            setTitle('')
+            setDesc('')
+            toast('เพิ่ม Project แล้ว')
+          }}
+        >
+          <p className="label">เพิ่ม Project</p>
+          <input className="field" placeholder="ชื่อ Project" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="ชื่อ Project" />
+          <textarea className="field" rows={2} placeholder="คำอธิบาย" value={desc} onChange={(e) => setDesc(e.target.value)} aria-label="คำอธิบาย Project" />
+          <button className="btn btn-primary w-full" disabled={!title.trim()}><Plus size={16} /> เพิ่ม Project</button>
+        </form>
+      </Card>
+
+      {projects.length === 0 ? (
+        <Empty>ยังไม่มี Project เริ่มจดอันแรกด้านบนได้เลย</Empty>
       ) : (
-        <Empty>ยังไม่ได้เลือกธุรกิจหลัก ไม่เป็นไร ใช้แอปไปก่อนได้ เมื่อพร้อมค่อยตั้งโปรเจกต์ด้านล่างเป็นธุรกิจหลัก</Empty>
-      )}
-
-      <Card>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base">โปรเจกต์ที่สนับสนุน</h2>
-          <button className="btn btn-soft !min-h-0 !px-3 !py-1.5 text-xs" onClick={() => setEditProject('new')}><Plus size={14} /> โปรเจกต์</button>
-        </div>
-        {supporting.length === 0 ? <Empty>ยังไม่มี</Empty> : (
-          <ul className="space-y-3">
-            {supporting.map((p) => (
-              <li key={p.id} className="rounded-2xl bg-white/40 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <button className="text-left" onClick={() => setEditProject(p)}>
-                    <p>{p.title}</p>
-                    <p className="text-[11px] text-soft">{MISSION_META[p.missionId].title} · {p.status === 'active' ? 'กำลังทำ' : 'พักไว้'}</p>
-                  </button>
-                  <button className="btn btn-ghost !min-h-0 !px-3 !py-1 text-xs" onClick={() => setNewTask(p.id)}><Plus size={14} /> งาน</button>
-                </div>
-                <div className="mt-2"><TaskList compact tasks={s.tasks.filter((t) => t.projectId === p.id && t.status !== 'archived')} empty="ยังไม่มีงาน" /></div>
-              </li>
-            ))}
+        <>
+          <p className="px-1 text-xs text-soft">เรียงจากใหม่ไปเก่า · ปักหมุดไว้ด้านบนได้ {pinnedCount(s.projects)}/{PIN_LIMIT}</p>
+          <ul className="space-y-4">
+            {projects.map((p) => <li key={p.id}><ProjectCard project={p} /></li>)}
           </ul>
-        )}
-      </Card>
-
-      <Card>
-        <h2 className="mb-3 text-base">คิวทบทวน (งานที่เลื่อนออกไป)</h2>
-        <TaskList tasks={s.tasks.filter((t) => t.status === 'deferred')} empty="ไม่มีงานในคิว" />
-      </Card>
-
-      <TaskEditor task={newTask ? 'new' : null} defaults={{ projectId: newTask, missionId: s.projects.find((p) => p.id === newTask)?.missionId }} onClose={() => setNewTask(null)} />
-      <ProjectEditor value={editProject} onClose={() => setEditProject(null)} />
-    </div>
-  )
-}
-
-function ProjectEditor({ value, onClose }: { value: Project | 'new' | null; onClose: () => void }) {
-  return (
-    <Sheet open={value !== null} onClose={onClose} title={value === 'new' ? 'โปรเจกต์ใหม่' : 'แก้ไขโปรเจกต์'}>
-      {value !== null && <ProjectForm key={value === 'new' ? 'n' : value.id} initial={value === 'new' ? null : value} onClose={onClose} />}
-    </Sheet>
-  )
-}
-
-function ProjectForm({ initial, onClose }: { initial: Project | null; onClose: () => void }) {
-  const s = useStore()
-  const [title, setTitle] = useState(initial?.title ?? '')
-  const [desc, setDesc] = useState(initial?.description ?? '')
-  const [missionId, setMission] = useState<MissionId>(initial?.missionId ?? 'empire')
-  const [status, setStatus] = useState(initial?.status ?? 'active')
-  const save = () => {
-    if (!title.trim()) return
-    if (initial) s.updateProject(initial.id, { title, description: desc, missionId, status })
-    else s.addProject({ title, description: desc, missionId, status })
-    onClose()
-  }
-  return (
-    <div className="space-y-3">
-      <input className="field" placeholder="ชื่อโปรเจกต์" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="ชื่อโปรเจกต์" />
-      <textarea className="field" rows={2} placeholder="คำอธิบาย" value={desc} onChange={(e) => setDesc(e.target.value)} aria-label="คำอธิบาย" />
-      <select className="field" value={missionId} onChange={(e) => setMission(e.target.value as MissionId)} aria-label="ภารกิจ">
-        {MISSION_ORDER.map((m) => <option key={m} value={m}>{MISSION_META[m].title}</option>)}
-      </select>
-      <select className="field" value={status} onChange={(e) => setStatus(e.target.value as Project['status'])} aria-label="สถานะ">
-        <option value="active">กำลังทำ</option><option value="paused">พักไว้</option><option value="done">เสร็จแล้ว</option>
-      </select>
-      {initial && !initial.isPrimaryBusiness && (
-        <button className="btn btn-soft w-full" onClick={() => { if (confirm('ตั้งเป็นธุรกิจหลัก? (ธุรกิจหลักเดิมจะกลายเป็นโปรเจกต์สนับสนุน)')) { s.setPrimaryProject(initial.id); onClose() } }}>
-          <Star size={16} /> ตั้งเป็นธุรกิจหลัก
-        </button>
+        </>
       )}
-      <div className="flex gap-2">
-        {initial && <button className="btn btn-ghost text-[#a0465a]" onClick={() => { if (confirm('ลบโปรเจกต์นี้? (งานจะยังอยู่)')) { s.deleteProject(initial.id); onClose() } }}>ลบ</button>}
-        <button className="btn btn-primary flex-1" onClick={save}>บันทึก</button>
-      </div>
+
+      {deferred.length > 0 && (
+        <details className="glass rounded-[1.75rem] p-4">
+          <summary className="cursor-pointer text-sm">คิวทบทวน (งานที่เลื่อนออกไป) · {deferred.length}</summary>
+          <div className="mt-3"><TaskList tasks={deferred} /></div>
+        </details>
+      )}
     </div>
+  )
+}
+
+/** Tap to edit, Enter/blur saves, Esc cancels. */
+function InlineText({ value, onSave, placeholder, label, multiline = false, required = false, className = '' }: { value: string; onSave: (v: string) => void; placeholder: string; label: string; multiline?: boolean; required?: boolean; className?: string }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  if (!editing) {
+    return (
+      <button type="button" className={`min-w-0 flex-1 cursor-text text-left ${className}`} aria-label={`แก้ไข${label}`} onClick={() => { setDraft(value); setEditing(true) }}>
+        {value ? <span className="whitespace-pre-wrap break-words">{value}</span> : <span className="text-soft">{placeholder}</span>}
+      </button>
+    )
+  }
+  const commit = () => {
+    const v = draft.trim()
+    setEditing(false)
+    if (required && !v) return
+    if (v !== value) onSave(v)
+  }
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setEditing(false)
+    if (e.key === 'Enter' && !(multiline && e.shiftKey)) { e.preventDefault(); commit() }
+  }
+  const cls = `field !py-1.5 ${className}`
+  return multiline ? (
+    <textarea className={cls} rows={2} autoFocus value={draft} placeholder={placeholder} aria-label={label} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
+  ) : (
+    <input className={cls} autoFocus value={draft} placeholder={placeholder} aria-label={label} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
+  )
+}
+
+function AddLine({ placeholder, onAdd }: { placeholder: string; onAdd: (v: string) => void }) {
+  const [v, setV] = useState('')
+  return (
+    <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (v.trim()) { onAdd(v.trim()); setV('') } }}>
+      <input className="field !py-2 text-sm" placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} aria-label={placeholder} />
+      <button className="btn btn-soft !px-3" aria-label="เพิ่ม"><Plus size={16} /></button>
+    </form>
+  )
+}
+
+function ProjectCard({ project: p }: { project: Project }) {
+  const s = useStore()
+  const toast = useUI((u) => u.showToast)
+  const [sending, setSending] = useState(false)
+  const micro = microTasksOf(p, s.tasks)
+  const setMicro = (next: MicroTaskText[]) => s.updateProject(p.id, { microTasks: next })
+  const setMilestones = (next: Milestone[]) => s.updateProject(p.id, { milestones: next })
+  const pin = () => {
+    const n = nextPin(s.projects, p.id, s.now().toISOString())
+    if (n === 'limit') { toast(`ปักหมุดได้สูงสุด ${PIN_LIMIT} อัน`); return }
+    s.updateProject(p.id, { pinnedAt: n })
+  }
+  const send = async () => {
+    setSending(true)
+    try {
+      const { url } = await pushToNotion(projectPush(p, micro))
+      s.updateProject(p.id, { notion: { sentAt: s.now().toISOString(), url } })
+      toast('ส่งเข้า Notion แล้ว (Idea Inbox & Lab)')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'ส่งเข้า Notion ไม่สำเร็จ')
+    } finally {
+      setSending(false)
+    }
+  }
+  const changed = changedSinceSent(p.updatedAt, p.notion)
+  return (
+    <article className={`glass rounded-[1.75rem] border p-4 ${p.pinnedAt ? 'border-plum/40' : 'border-white/60'}`}>
+      <div className="flex items-start gap-2">
+        <InlineText value={p.title} required label="ชื่อ Project" placeholder="ชื่อ Project" className="text-lg font-medium" onSave={(v) => s.updateProject(p.id, { title: v })} />
+        <button className={`rounded-full p-2 hover:bg-white/60 ${p.pinnedAt ? 'text-plum' : 'text-soft'}`} aria-label={p.pinnedAt ? 'เลิกปักหมุด' : 'ปักหมุด'} title={p.pinnedAt ? 'เลิกปักหมุด' : 'ปักหมุด'} aria-pressed={!!p.pinnedAt} onClick={pin}>
+          {p.pinnedAt ? <PinOff size={16} /> : <Pin size={16} />}
+        </button>
+        <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="ลบ Project" title="ลบ Project" onClick={() => { if (confirm(`ลบ "${p.title}"?`)) s.deleteProject(p.id) }}><Trash2 size={16} /></button>
+      </div>
+      {(p.pinnedAt || p.isPrimaryBusiness) && (
+        <p className="mt-0.5 flex gap-2 text-[11px] text-soft">
+          {p.pinnedAt && <span className="flex items-center gap-1"><Pin size={11} /> ปักหมุด</span>}
+          {p.isPrimaryBusiness && <span className="flex items-center gap-1"><Star size={11} /> ธุรกิจหลัก</span>}
+        </p>
+      )}
+      <div className="mt-2 flex text-sm text-soft">
+        <InlineText value={p.description} multiline label="คำอธิบาย" placeholder="+ เพิ่มคำอธิบาย" onSave={(v) => s.updateProject(p.id, { description: v })} />
+      </div>
+
+      <div className="mt-4">
+        <p className="label mb-1.5">Milestones</p>
+        <ul className="space-y-1">
+          {p.milestones.map((m) => (
+            <li key={m.id} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={m.done} onChange={() => s.toggleMilestone(p.id, m.id)} aria-label={`เสร็จแล้ว: ${m.title}`} />
+              <InlineText value={m.title} required label="Milestone" placeholder="Milestone" className={m.done ? 'line-through opacity-60' : ''} onSave={(v) => setMilestones(p.milestones.map((x) => (x.id === m.id ? { ...x, title: v } : x)))} />
+              <button className="rounded-full p-1.5 text-soft hover:bg-white/60" aria-label={`ลบ ${m.title}`} onClick={() => setMilestones(p.milestones.filter((x) => x.id !== m.id))}><X size={14} /></button>
+            </li>
+          ))}
+        </ul>
+        <AddLine placeholder="เพิ่ม Milestone" onAdd={(v) => setMilestones([...p.milestones, { id: uid('ms'), title: v, done: false }])} />
+      </div>
+
+      <div className="mt-4">
+        <p className="label mb-1.5">Micro Tasks</p>
+        <ul className="space-y-1">
+          {micro.map((m) => (
+            <li key={m.id} className="flex items-center gap-2 text-sm">
+              <span className="text-soft" aria-hidden>•</span>
+              <InlineText value={m.title} required label="Micro Task" placeholder="Micro Task" onSave={(v) => setMicro(micro.map((x) => (x.id === m.id ? { ...x, title: v } : x)))} />
+              <button className="rounded-full p-1.5 text-soft hover:bg-white/60" aria-label={`ลบ ${m.title}`} onClick={() => setMicro(micro.filter((x) => x.id !== m.id))}><X size={14} /></button>
+            </li>
+          ))}
+        </ul>
+        <AddLine placeholder="เพิ่ม Micro Task" onAdd={(v) => setMicro([...micro, { id: uid('mt'), title: v }])} />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/50 pt-3">
+        {p.notion ? (
+          <p className="text-xs text-soft">
+            ส่งเข้า Notion แล้ว {p.notion.sentAt.slice(0, 10)}
+            {p.notion.url && <> · <a className="underline" href={p.notion.url} target="_blank" rel="noreferrer">เปิดใน Notion</a></>}
+            {changed && ' · มีการแก้ไขหลังส่ง'}
+          </p>
+        ) : (
+          <p className="text-xs text-soft">ยังอยู่ในพื้นที่ทดของเธอ</p>
+        )}
+        {(!p.notion || changed) && (
+          <button className="btn btn-soft !min-h-0 !px-3 !py-1.5 text-xs" disabled={sending} onClick={() => void send()}>
+            <Send size={14} /> {sending ? 'กำลังส่ง…' : p.notion ? 'ส่งเข้า Notion อีกครั้ง' : 'ส่งเข้า Notion'}
+          </button>
+        )}
+      </div>
+    </article>
   )
 }
 
@@ -174,7 +228,20 @@ function Ideas() {
   const s = useStore()
   const toast = useUI((u) => u.showToast)
   const [text, setText] = useState('')
+  const [sending, setSending] = useState<string | null>(null)
   const inbox = s.ideas.filter((i) => i.status === 'inbox')
+  const send = async (id: string, t: string) => {
+    setSending(id)
+    try {
+      const { url } = await pushToNotion(ideaPush(t))
+      s.updateIdea(id, { notion: { sentAt: s.now().toISOString(), url } })
+      toast('ส่งเข้า Notion แล้ว (Idea Inbox & Lab)')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'ส่งเข้า Notion ไม่สำเร็จ')
+    } finally {
+      setSending(null)
+    }
+  }
   return (
     <Card>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { s.addIdea(text.trim()); setText('') } }}>
@@ -184,21 +251,22 @@ function Ideas() {
       <ul className="mt-4 space-y-2">
         {inbox.length === 0 && <Empty>Inbox ว่าง ไอเดียที่ไม่เกี่ยวกับธุรกิจหลักควรมาพักไว้ที่นี่</Empty>}
         {inbox.map((i) => (
-          <li key={i.id} className="flex items-center gap-2 rounded-2xl bg-white/40 p-3">
-            <p className="flex-1 text-sm">{i.text}</p>
-            <button
-              className="rounded-full p-2 text-soft hover:bg-white/60"
-              aria-label="ส่งเป็น Suggestion ให้ AI Company"
-              title="ส่งเป็น Suggestion ให้ AI Company (ไม่สร้างงานเอง)"
-              onClick={() => {
-                suggestToCompany({ title: i.text.slice(0, 80), rationale: 'จาก Idea Inbox ใน BECOMING', proposedBy: 'muse' })
-                s.updateIdea(i.id, { status: 'converted' })
-                toast('ส่งเป็น Suggestion ให้ AI Company แล้ว')
-              }}
-            >
-              <ArrowRightCircle size={18} />
-            </button>
-            <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="เก็บเข้ากรุ" title="เก็บเข้ากรุ" onClick={() => s.updateIdea(i.id, { status: 'archived' })}><Trash2 size={16} /></button>
+          <li key={i.id} className="rounded-2xl bg-white/40 p-3">
+            <div className="flex items-center gap-2">
+              <InlineText value={i.text} required multiline label="ไอเดีย" placeholder="ไอเดีย" className="text-sm" onSave={(v) => s.updateIdea(i.id, { text: v })} />
+              {!i.notion && (
+                <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="ส่งเข้า Notion" title="ส่งเข้า Notion (ทางเดียว)" disabled={sending === i.id} onClick={() => void send(i.id, i.text)}>
+                  <Send size={16} />
+                </button>
+              )}
+              <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="เก็บเข้ากรุ" title="เก็บเข้ากรุ" onClick={() => s.updateIdea(i.id, { status: 'archived' })}><Trash2 size={16} /></button>
+            </div>
+            {i.notion && (
+              <p className="mt-1 text-[11px] text-soft">
+                ส่งเข้า Notion แล้ว {i.notion.sentAt.slice(0, 10)}
+                {i.notion.url && <> · <a className="underline" href={i.notion.url} target="_blank" rel="noreferrer">เปิดใน Notion</a></>}
+              </p>
+            )}
           </li>
         ))}
       </ul>
@@ -280,55 +348,6 @@ function Partners() {
             <input className="field !py-2 text-sm" placeholder="ทักษะที่เสริมกัน" value={p.skills} onChange={(e) => s.upsertPartner({ id: p.id, name: p.name, skills: e.target.value })} aria-label="ทักษะ" />
           </li>
         ))}
-      </ul>
-    </Card>
-  )
-}
-
-const AGENT_STATUS: { id: AgentStatus; label: string }[] = [
-  { id: 'planned', label: 'วางแผน' },
-  { id: 'prompt_created', label: 'มี Prompt' },
-  { id: 'tested', label: 'ทดสอบแล้ว' },
-  { id: 'operational', label: 'ใช้งานจริง' },
-]
-
-function Agents() {
-  const s = useStore()
-  const toast = useUI((u) => u.showToast)
-  const operational = s.agents.filter((a) => a.status === 'operational').length
-  return (
-    <Card>
-      <h2 className="text-base">AI Company — Prototype Tracker</h2>
-      <p className="mt-1 text-sm text-soft">ทุกตำแหน่งเริ่มที่ "วางแผน" ยังไม่มี Agent ตัวไหนทำงานจริงจนกว่าเธอจะอัปเดตเอง</p>
-      <div className="mt-3 flex gap-1" aria-label={`ใช้งานจริง ${operational} จาก ${s.agents.length}`}>
-        {s.agents.map((a) => (
-          <span key={a.id} className="h-2 flex-1 rounded-full" style={{ background: ['rgba(255,255,255,0.6)', '#dccfe8', '#a99acb', '#645b7c'][AGENT_STATUS.findIndex((x) => x.id === a.status)] }} />
-        ))}
-      </div>
-      <ul className="mt-4 space-y-2">
-        {s.agents.map((a, i) => {
-          const task = s.tasks.find((t) => t.id === a.taskId)
-          return (
-            <li key={a.id} className="rounded-2xl bg-white/40 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm">{i + 1}. {a.name}</p>
-                  <p className="text-[11px] text-soft">{a.nameTh}</p>
-                </div>
-                <select className="rounded-full bg-white/70 px-2 py-1.5 text-xs" value={a.status} onChange={(e) => s.updateAgent(a.id, { status: e.target.value as AgentStatus })} aria-label={`สถานะ ${a.name}`}>
-                  {AGENT_STATUS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-                </select>
-              </div>
-              {task ? (
-                <p className="mt-1.5 flex items-center gap-1 text-xs text-soft">{task.status === 'done' && <Check size={12} />} งาน: {task.title}</p>
-              ) : (
-                <button className="mt-1.5 text-xs text-plum underline" onClick={() => { const t = prompt(`งานจริงสำหรับ ${a.name}:`, `กำหนดภารกิจจริงให้ ${a.name}`); if (t) { s.createAgentTask(a.id, t); toast('สร้างงานแล้ว') } }}>
-                  + สร้างงานจริงให้ตำแหน่งนี้
-                </button>
-              )}
-            </li>
-          )
-        })}
       </ul>
     </Card>
   )

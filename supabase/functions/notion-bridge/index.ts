@@ -3,9 +3,11 @@
 // The bridge between BECOMING and the AI Company workspace in Notion.
 //   action "load"      → reads the 4 business sources and returns a BusinessContext
 //   action "writeback" → writes Eve's answers back to the original Notion records
+//   action "push"      → one-way send of a project / idea from Eve's sandbox (Founder Mode)
+//                         into Idea Inbox & Lab. Nothing is synced back.
 //
-// BECOMING never creates committed business tasks. The only record this function
-// creates is a Suggestion in Idea Inbox & Lab (Stage "💭 Inbox"), for the AI Company to judge.
+// BECOMING never creates committed business tasks. The only records this function
+// creates are pages in Idea Inbox & Lab (Stage "💭 Inbox"), for the AI Company to judge.
 //
 // Secrets (set with `supabase secrets set ...`, never in the web app):
 //   NOTION_TOKEN            required — internal integration secret (ntn_...)
@@ -359,6 +361,47 @@ async function writeOne(e: any): Promise<void> {
   }
 }
 
+// ── Push (sandbox → Notion, one way) ─────────────────────────────────────────
+
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+
+async function pushOne(it: any): Promise<{ url: string | null }> {
+  const title = str(it?.title, 200)
+  if (!title) throw new Error('ต้องมีชื่อ')
+  const kind = it?.kind === 'project' ? 'Project' : 'Idea'
+  const description = str(it?.description, 1900)
+  const milestones: { title: string; done: boolean }[] = (Array.isArray(it?.milestones) ? it.milestones : [])
+    .map((m: any) => ({ title: str(m?.title, 1900), done: m?.done === true }))
+    .filter((m: { title: string }) => m.title)
+    .slice(0, 40)
+  const micro: string[] = (Array.isArray(it?.microTasks) ? it.microTasks : []).map((m: unknown) => str(m, 1900)).filter(Boolean).slice(0, 40)
+  const children: any[] = []
+  if (description) children.push({ object: 'block', type: 'paragraph', paragraph: { rich_text: rt(description) } })
+  if (milestones.length) {
+    children.push({ object: 'block', type: 'heading_3', heading_3: { rich_text: rt('Milestones') } })
+    for (const m of milestones) children.push({ object: 'block', type: 'to_do', to_do: { rich_text: rt(m.title), checked: m.done } })
+  }
+  if (micro.length) {
+    children.push({ object: 'block', type: 'heading_3', heading_3: { rich_text: rt('Micro Tasks') } })
+    for (const m of micro) children.push({ object: 'block', type: 'bulleted_list_item', bulleted_list_item: { rich_text: rt(m) } })
+  }
+  children.push({ object: 'block', type: 'paragraph', paragraph: { rich_text: rt('ส่งจากพื้นที่ทดข้อมูลใน BECOMING (ทางเดียว ไม่ sync กลับ)') } })
+  const pg = await notion('/pages', {
+    method: 'POST',
+    body: {
+      parent: { database_id: DB.ideaLab },
+      properties: {
+        Idea: { title: rt(`[${kind}] ${title}`) },
+        'One-line Idea': { rich_text: rt(description.split('\n')[0] || `${kind} จาก BECOMING`) },
+        Stage: { select: { name: '💭 Inbox' } },
+        Decision: { select: { name: 'Not reviewed' } },
+      },
+      children: children.slice(0, 100),
+    },
+  })
+  return { url: pg?.url ?? null }
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -400,6 +443,9 @@ Deno.serve(async (req) => {
         }
       }
       return json({ sent, failed })
+    }
+    if (body.action === 'push') {
+      return json(await pushOne(body.item))
     }
     return json({ error: 'unknown action' }, 400)
   } catch (err) {
