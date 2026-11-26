@@ -325,3 +325,28 @@ describe('Write-back (store)', () => {
     expect(s.events[0].delivery).toBe('failed')
   })
 })
+
+describe('Notion source (client side)', () => {
+  beforeEach(() => {
+    resetStore()
+  })
+
+  it('falls back to mock data with a reason when Notion is not reachable', async () => {
+    const { loadContext } = await import('../orchestration/sources')
+    const r = await loadContext(TODAY, NOW)
+    expect(r.ctx.adapter).toBe('mock')
+    expect(r.status.adapter).toBe('mock')
+    expect(r.status.fallback?.reason).toBeTruthy()
+  })
+
+  it('answers about Notion records wait in the outbox until Notion is reachable', async () => {
+    const { useSources } = await import('../orchestration/useOrchestration')
+    useSources.setState({ ctx: { ...ctx(), adapter: 'notion' }, status: { adapter: 'mock', fallback: null } })
+    answer(queue({}, S().orchestration).byType.do[0], { kind: 'action', outcome: 'done', note: '' })
+    const e = S().orchestration.events.at(-1)!
+    expect(e.via).toBe('notion')
+    await sendOutbox()
+    expect(S().orchestration.events.at(-1)!.delivery).toBe('pending')
+    useSources.setState({ ctx: null, status: null })
+  })
+})
