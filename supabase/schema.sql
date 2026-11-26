@@ -88,3 +88,13 @@ begin
          with check ((select auth.uid()) = user_id)', t);
   end loop;
 end $$;
+
+-- Table privileges. Newer Supabase projects don't grant these automatically to
+-- tables created in SQL; without them every request fails with
+-- "permission denied for table ...". RLS above still limits each user to their own rows.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on
+  public.user_state, public.memories, public.behavior_events,
+  public.recommendations, public.capture_log
+to authenticated;
+grant usage, select on sequence public.capture_log_id_seq to authenticated;
