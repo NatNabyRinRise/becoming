@@ -37,12 +37,24 @@ Missions: influence = personal brand/content, people = partners/team, empire = b
 Use "memory" only for durable facts about the user's life (people, goals, preferences), never for one-off tasks.
 summary: one short Thai sentence describing the image.`
 
+/** Works with both the legacy anon key and the newer publishable keys. */
+function publicKey(): string {
+  const legacy = Deno.env.get('SUPABASE_ANON_KEY')
+  if (legacy) return legacy
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}') as Record<string, string>
+    return keys.default ?? Object.values(keys)[0] ?? ''
+  } catch {
+    return ''
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
   // the user's own session — RLS applies to every query below
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, publicKey(), {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   })
   const { data: auth } = await supabase.auth.getUser()
