@@ -90,7 +90,11 @@ export function useAttention(): { ctx: BusinessContext | null; personal: Persona
 // ── Actions (write-back) ─────────────────────────────────────────────────────
 
 const st = () => useStore.getState()
-const currentVia = () => useSources.getState().ctx?.adapter ?? 'mock'
+/** Where new answers go. While Notion is unreachable ('none') they wait in the outbox for Notion. */
+const currentVia = () => {
+  const a = useSources.getState().ctx?.adapter ?? 'mock'
+  return a === 'none' ? 'notion' : a
+}
 const setOrch = (fn: (o: ReturnType<typeof st>['orchestration']) => ReturnType<typeof st>['orchestration']) =>
   useStore.setState((s) => ({ orchestration: fn(s.orchestration) }))
 
