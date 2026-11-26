@@ -10,6 +10,7 @@ import { homeMessage } from '../../engine/companions'
 import { orbStage, totals } from '../../engine/rewards'
 import { COMPANIONS } from '../../data/seed'
 import { CoreNudge } from '../core/CoreNudge'
+import { AttentionBoard } from '../attention/AttentionBoard'
 import { FocusCountdown } from './FocusCountdown'
 import { useLiveMinutesLeft } from '../../hooks/useFocusClock'
 import { daysBetween, greeting, hhmmToMin, thaiShortDate } from '../../utils/date'
@@ -110,6 +111,9 @@ export function HomePage() {
       </section>
 
       <CoreNudge />
+
+      {/* v0.4 orchestration: DO / REVIEW / DECIDE / THINK / LIFE */}
+      <AttentionBoard />
 
       {/* One Thing card */}
       {oneThing && (

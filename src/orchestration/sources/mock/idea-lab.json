@@ -1,0 +1,9 @@
+{
+  "source": "idea_lab",
+  "records": [
+    { "id": "idea-1", "title": "Podcast สั้น 10 นาทีสำหรับแม่ทำธุรกิจ", "note": "อัดตอนลูกหลับ เล่าเรื่องจริงสัปดาห์ละตอน", "stage": "capture", "tags": ["brand", "creative"], "capturedAt": "2026-11-20T12:00:00.000Z", "url": "https://example.com/ai-company/ideas/idea-1" },
+    { "id": "idea-2", "title": "Template วางแผนสัปดาห์สำหรับแม่", "note": "ขายเป็น digital product ราคาไม่แพง", "stage": "expand", "tags": ["product"], "capturedAt": "2026-11-18T12:00:00.000Z", "url": "https://example.com/ai-company/ideas/idea-2" },
+    { "id": "idea-3", "title": "Community รายเดือน", "note": "กลุ่มแชตส่วนตัว + live เดือนละครั้ง", "stage": "validate", "tags": [], "capturedAt": "2026-11-10T12:00:00.000Z", "url": "https://example.com/ai-company/ideas/idea-3" },
+    { "id": "idea-4", "title": "แอปติดตามงานบ้าน", "note": "พักไว้ก่อน ไกลจากธุรกิจหลัก", "stage": "parked", "tags": [], "capturedAt": "2026-10-30T12:00:00.000Z", "url": "https://example.com/ai-company/ideas/idea-4" }
+  ]
+}

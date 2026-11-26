@@ -34,6 +34,7 @@ import {
   seedTasks,
 } from '../data/seed'
 import { localDate } from '../utils/date'
+import { emptyOrchestration, type OrchestrationState } from '../orchestration/types'
 
 /** Everything that is persisted. */
 export interface DomainState {
@@ -64,12 +65,14 @@ export interface DomainState {
   lastActiveDate: string | null
   comeback: { since: string; returnDate: string; gap: number } | null
   plannedOneThing: Record<string, string>
+  /** v0.4 orchestration: write-back outbox to the AI Company, suggestions, snoozes. */
+  orchestration: OrchestrationState
 }
 
 export const DOMAIN_KEYS: (keyof DomainState)[] = [
   'profile', 'settings', 'missions', 'projects', 'tasks', 'routines', 'dayLogs', 'checkIns', 'focus', 'focusLog',
   'rescues', 'journal', 'rewards', 'transactions', 'reviews', 'ideas', 'partners', 'revenue', 'content', 'agents',
-  'gifts', 'followUp', 'weekly', 'experiment', 'lastActiveDate', 'comeback', 'plannedOneThing',
+  'gifts', 'followUp', 'weekly', 'experiment', 'lastActiveDate', 'comeback', 'plannedOneThing', 'orchestration',
 ]
 
 export function initialDomain(now: Date = new Date()): DomainState {
@@ -118,6 +121,7 @@ export function initialDomain(now: Date = new Date()): DomainState {
     lastActiveDate: null,
     comeback: null,
     plannedOneThing: {},
+    orchestration: emptyOrchestration(),
   }
 }
 

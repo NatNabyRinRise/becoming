@@ -9,6 +9,7 @@ import { useUI } from '../../store/useUI'
 import { useToday } from '../../hooks/useToday'
 import { recommend } from '../../engine/recommendations'
 import { COMPANIONS, MISSION_META } from '../../data/seed'
+import { MomentPick } from '../attention/MomentPick'
 
 export function OpportunitySheet() {
   const open = useUI((s) => s.opportunityOpen)
@@ -65,6 +66,8 @@ export function OpportunityFlow({ onDone }: { onDone: () => void }) {
           <button className="btn btn-primary w-full" onClick={() => setConfirmed(true)}>หางานที่พอดีให้หน่อย</button>
         </div>
       )}
+      {minutes !== null && confirmed && <MomentPick minutes={minutes} energy={energy} onDone={onDone} />}
+      {rec && rec.kind !== 'recovery' && <p className="label -mb-3">หรืองานส่วนตัวใน BECOMING</p>}
       {rec && (
         <div className="space-y-3 rounded-3xl bg-white/60 p-4">
           <div className="flex items-center gap-2">

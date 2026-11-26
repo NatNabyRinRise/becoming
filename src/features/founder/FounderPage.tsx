@@ -4,6 +4,7 @@ import { PageHeader, Card, Empty, Segmented } from '../../components/ui/controls
 import { Sheet } from '../../components/ui/Sheet'
 import { Avatar } from '../../components/companions/Avatar'
 import { useStore } from '../../store/useStore'
+import { suggestToCompany } from '../../orchestration/useOrchestration'
 import { useUI } from '../../store/useUI'
 import { TaskList, TaskEditor } from './TaskList'
 import { MISSION_META, MISSION_ORDER } from '../../data/seed'
@@ -171,6 +172,7 @@ function ProjectForm({ initial, onClose }: { initial: Project | null; onClose: (
 
 function Ideas() {
   const s = useStore()
+  const toast = useUI((u) => u.showToast)
   const [text, setText] = useState('')
   const inbox = s.ideas.filter((i) => i.status === 'inbox')
   return (
@@ -184,7 +186,18 @@ function Ideas() {
         {inbox.map((i) => (
           <li key={i.id} className="flex items-center gap-2 rounded-2xl bg-white/40 p-3">
             <p className="flex-1 text-sm">{i.text}</p>
-            <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="แปลงเป็นงาน" title="แปลงเป็นงาน" onClick={() => s.ideaToTask(i.id)}><ArrowRightCircle size={18} /></button>
+            <button
+              className="rounded-full p-2 text-soft hover:bg-white/60"
+              aria-label="ส่งเป็น Suggestion ให้ AI Company"
+              title="ส่งเป็น Suggestion ให้ AI Company (ไม่สร้างงานเอง)"
+              onClick={() => {
+                suggestToCompany({ title: i.text.slice(0, 80), rationale: 'จาก Idea Inbox ใน BECOMING', proposedBy: 'muse' })
+                s.updateIdea(i.id, { status: 'converted' })
+                toast('ส่งเป็น Suggestion ให้ AI Company แล้ว')
+              }}
+            >
+              <ArrowRightCircle size={18} />
+            </button>
             <button className="rounded-full p-2 text-soft hover:bg-white/60" aria-label="เก็บเข้ากรุ" title="เก็บเข้ากรุ" onClick={() => s.updateIdea(i.id, { status: 'archived' })}><Trash2 size={16} /></button>
           </li>
         ))}

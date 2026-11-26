@@ -25,6 +25,8 @@ import { ExperimentPage } from '../features/experiment/ExperimentPage'
 import { MissionsPage } from '../features/missions/MissionsPage'
 import { AccountPage, SyncConflictSheet } from '../features/account/AccountPage'
 import { CorePage } from '../features/core/CorePage'
+import { CompanyLinkPage } from '../features/attention/CompanyLinkPage'
+import { AttentionSheet } from '../features/attention/AttentionUI'
 import { startObserver } from '../intelligence/observer'
 import { useCore } from '../intelligence/useCore'
 import { startSync } from '../sync/engine'
@@ -118,6 +120,7 @@ function Shell() {
           <Route path="/experiment" element={<ExperimentPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/core" element={<CorePage />} />
+          <Route path="/link" element={<CompanyLinkPage />} />
           <Route path="/capture" element={<CorePage initialTab="capture" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -129,6 +132,7 @@ function Shell() {
       <OpportunitySheet />
       <ComebackSheet />
       <SyncConflictSheet />
+      <AttentionSheet />
       <Toast />
     </div>
   )

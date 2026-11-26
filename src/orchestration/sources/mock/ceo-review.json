@@ -1,0 +1,18 @@
+{
+  "source": "ceo_review",
+  "records": [
+    {
+      "id": "ceo-2026-w47",
+      "weekStartOffsetDays": -7,
+      "moved": ["Market Research v1 เสร็จ", "Brand Direction v1 ส่งมาแล้ว"],
+      "stalled": ["Company Positioning ค้างมา 2 สัปดาห์", "ยังไม่ได้นัด Partner"],
+      "needsDecision": ["เลือก Market Segment แรก", "Brand Direction A/B"],
+      "stop": ["ทำโลโก้ก่อนมี Positioning"],
+      "continue": ["Research ลูกค้าจริงสัปดาห์ละ 2 คน"],
+      "priorities": ["ตัดสินใจ Market Segment", "เขียน Positioning ให้เสร็จ", "นัด Partner 1 คน"],
+      "strategicQuestion": "ถ้าทำได้แค่สิ่งเดียวในเดือนนี้ อะไรจะทำให้ธุรกิจขยับมากที่สุด?",
+      "capacityNote": "สัปดาห์ที่แล้วลูกป่วย 2 วัน เวลาทำงานจริงประมาณ 4 ชั่วโมง",
+      "url": "https://example.com/ai-company/ceo-review/w47"
+    }
+  ]
+}

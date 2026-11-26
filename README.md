@@ -62,6 +62,17 @@ src/
   tests/          Vitest acceptance tests
 ```
 
+### Orchestration layer (v0.4 architecture refactor)
+> **AI Company decides what work exists. BECOMING decides what deserves Eve's attention now.**
+
+`src/orchestration/` — BECOMING reads business context, never creates committed business tasks.
+- `types.ts` — data model: `SourceRef` on every record, Company Tasks with work mode (`action` / `review` / `decision`), Idea Lab stages (Capture → Expand → Validate → Commit in AI Company), Life OS, Weekly CEO Review, attention items, write-back events, suggestions.
+- `sources/` — `BusinessSourceAdapter` + `WriteBackSink` interfaces. v0.1 uses `mock.ts` + `mock/*.json` for the 4 sources; a real adapter (e.g. Notion via a server function) only has to return the same `BusinessContext`.
+- `roles/` — J (dispatch rules, attention queue, free-time pick, Morning Briefing, Rescue, weekly synthesis), Atlas (review/decision/idea framing), Bloom (capacity), Spark (micro/execution steps), Muse (idea expansion), Nexus (context pack + learning signals).
+- `writeback.ts` — guardrails (`assertBecomingOutput`) and events sent back to the source: Action done/deferred/blocked, Review approved/revise/rejected + feedback, Decision option + note + date, Idea explore/validate/park/kill/commit, Life done/skipped/adjusted, Suggestions (status `suggestion`).
+- UI: Home attention board (DO / REVIEW / DECIDE / THINK / LIFE), item sheet, Morning Briefing step "Your Briefing", Rescue "Minimum Viable Day", I Have a Moment (Decision → Review → Action → Spark micro step → Life/Reflection), `/link` AI Company Link page (sources, Weekly CEO Review, outbox, suggestions, guardrails).
+- Persisted in `DomainState.orchestration` (included in backup and cloud sync). Business data itself is not persisted — the source is the truth.
+
 ### Recommendation engine (deterministic)
 Filters done/blocked/dependency-waiting tasks → keeps those that fit the window → scores by priority, mission order, primary business, in-progress, postponements, window fit, energy band and circumstances → returns one task + companion + short reason, or a clearly labelled smaller step, or recovery. Energy < 30 → recovery; 30–49 → low-effort only (thresholds configurable).
 
