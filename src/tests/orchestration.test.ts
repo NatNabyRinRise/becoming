@@ -331,12 +331,26 @@ describe('Notion source (client side)', () => {
     resetStore()
   })
 
-  it('falls back to mock data with a reason when Notion is not reachable', async () => {
+  it('shows no business items (never demo data) with a reason when Notion is not reachable', async () => {
     const { loadContext } = await import('../orchestration/sources')
     const r = await loadContext(TODAY, NOW)
-    expect(r.ctx.adapter).toBe('mock')
-    expect(r.status.adapter).toBe('mock')
+    expect(r.ctx.adapter).toBe('none')
+    expect(r.ctx.companyTasks).toEqual([])
+    expect(r.ctx.ideas).toEqual([])
+    expect(r.status.adapter).toBe('none')
     expect(r.status.fallback?.reason).toBeTruthy()
+  })
+
+  it('uses demo data only when Eve chooses it', async () => {
+    const { loadContext, setSourcePreference } = await import('../orchestration/sources')
+    setSourcePreference('mock')
+    try {
+      const r = await loadContext(TODAY, NOW)
+      expect(r.status).toEqual({ adapter: 'mock', fallback: null })
+      expect(r.ctx.companyTasks.length).toBeGreaterThan(0)
+    } finally {
+      setSourcePreference('auto')
+    }
   })
 
   it('answers about Notion records wait in the outbox until Notion is reachable', async () => {

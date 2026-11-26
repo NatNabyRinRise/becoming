@@ -79,7 +79,7 @@ export function CompanyLinkPage() {
           <p className="mt-2 text-[11px] text-soft">เชื่อม Notion แล้ว · อ่านเฉพาะงานที่ติ๊ก "Ready for BECOMING" · คำตอบของเธอถูกเขียนกลับไปที่หน้าเดิมใน Notion</p>
         ) : (
           <div className="mt-2 rounded-2xl bg-white/40 p-3 text-xs">
-            <p>กำลังใช้ข้อมูลจำลอง{status?.fallback ? ` — ${status.fallback.message}` : pref === 'mock' ? ' (เลือกไว้เอง)' : ''}</p>
+            <p>{status?.adapter === 'none' ? 'ยังอ่านจาก Notion ไม่ได้ จึงยังไม่แสดงงานธุรกิจ' : 'กำลังแสดงข้อมูลตัวอย่าง (เลือกไว้เอง) ไม่ใช่งานจริง'}{status?.fallback ? ` — ${status.fallback.message}` : ''}</p>
             {status?.fallback?.reason === 'not_signed_in' && <p className="mt-1 text-soft">ไปที่ Me → Account & Sync เพื่อเข้าสู่ระบบ</p>}
           </div>
         )}
@@ -87,10 +87,10 @@ export function CompanyLinkPage() {
           className="btn btn-ghost mt-2 !min-h-0 !px-2 !py-1 text-xs underline"
           onClick={() => {
             setSourcePreference(pref === 'mock' ? 'auto' : 'mock')
-            void reloadSources().then(() => toast(pref === 'mock' ? 'ลองเชื่อม Notion แล้ว' : 'สลับไปใช้ข้อมูลจำลองแล้ว'))
+            void reloadSources().then(() => toast(pref === 'mock' ? 'ลองเชื่อม Notion แล้ว' : 'สลับไปดูข้อมูลตัวอย่างแล้ว'))
           }}
         >
-          {pref === 'mock' ? 'ใช้ข้อมูลจาก Notion' : 'ใช้ข้อมูลจำลองแทน'}
+          {pref === 'mock' ? 'ใช้ข้อมูลจาก Notion' : 'ดูข้อมูลตัวอย่างแทน'}
         </button>
       </section>
 
