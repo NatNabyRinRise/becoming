@@ -142,3 +142,16 @@ describe('Follow-up', () => {
     expect(after.find((f) => f.key === items[0].key)).toBeUndefined()
   })
 })
+
+import { secondsLeft } from '../hooks/useFocusClock'
+describe('One Thing live countdown', () => {
+  const f = { id: 'f', taskId: 't', title: 'x', plannedMinutes: 30, createdAt: '2026-11-26T12:00:00.000Z', startedAt: '2026-11-26T12:00:00.000Z', pausedAt: null, elapsedSeconds: 0, status: 'running' as const, overtimeAcknowledgedAt: 0 }
+  it('counts down while running and keeps counting past zero until completed', () => {
+    expect(secondsLeft(f, Date.parse('2026-11-26T12:10:00.000Z'))).toBe(20 * 60)
+    expect(secondsLeft(f, Date.parse('2026-11-26T12:35:00.000Z'))).toBe(-5 * 60)
+  })
+  it('holds still while paused', () => {
+    const p = { ...f, status: 'paused' as const, elapsedSeconds: 600 }
+    expect(secondsLeft(p, Date.parse('2026-11-26T15:00:00.000Z'))).toBe(20 * 60)
+  })
+})
