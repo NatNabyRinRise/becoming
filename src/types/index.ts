@@ -258,6 +258,10 @@ export interface DailyReview {
   mood: Mood
   reflection: string
   tomorrowOneThingId: ID | null
+  /** สิ่งที่อยากให้เกิดพรุ่งนี้ (typed in Evening Debrief step 3). */
+  tomorrowIntention?: string
+  /** ภารกิจสำคัญของวันพรุ่งนี้ (typed in Evening Debrief step 3). */
+  tomorrowMission?: string
   summary: string
 }
 

@@ -11,6 +11,7 @@ import { recommend } from '../../engine/recommendations'
 import { COMPANIONS, MISSION_META } from '../../data/seed'
 import type { Circumstance, Mood } from '../../types'
 import { BriefingView } from '../attention/BriefingView'
+import { addDays } from '../../utils/date'
 
 export const MOODS: { id: Mood; emoji: string; label: string }[] = [
   { id: 'great', emoji: '🤩', label: 'ดีมาก' },
@@ -30,7 +31,7 @@ const REALITY: { id: Circumstance; emoji: string; label: string }[] = [
 
 export function BriefingPage() {
   const s = useStore()
-  const { checkIn } = useToday()
+  const { checkIn, date } = useToday()
   const nav = useNavigate()
   const toast = useUI((u) => u.showToast)
   const [step, setStep] = useState(0)
@@ -44,6 +45,9 @@ export function BriefingPage() {
   const [pickId, setPickId] = useState<string | null>(null)
   const primary = s.projects.find((p) => p.isPrimaryBusiness)
   const planned = checkIn?.oneThingId ?? null
+  const lastNight = s.reviews[addDays(date, -1)]
+  const lastIntention = lastNight?.tomorrowIntention?.trim()
+  const lastMission = lastNight?.tomorrowMission?.trim()
 
   const rec = useMemo(
     () =>
@@ -138,6 +142,13 @@ export function BriefingPage() {
 
       {step === 2 && (
         <div className="space-y-5">
+          {(lastIntention || lastMission) && (
+            <section className="glass rounded-[1.5rem] p-4 text-sm">
+              <p className="label mb-2">จากเมื่อคืน 🌙</p>
+              {lastIntention && <p><span className="text-soft">สิ่งที่อยากให้เกิด:</span> {lastIntention}</p>}
+              {lastMission && <p className="mt-1"><span className="text-soft">ภารกิจสำคัญ:</span> {lastMission}</p>}
+            </section>
+          )}
           <BriefingView energy={energy} minutes={minutes} reality={reality} />
           <div className="flex gap-2">
             <button className="btn btn-ghost" onClick={() => setStep(1)}>ย้อนกลับ</button>
