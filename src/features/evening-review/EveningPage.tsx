@@ -39,20 +39,19 @@ export function EveningPage() {
   const [extra, setExtra] = useState('')
   const [mood, setMood] = useState<Mood>(existing?.mood ?? 'okay')
   const [reflection, setReflection] = useState(existing?.reflection ?? '')
-  const [tomorrowId, setTomorrowId] = useState<string | null>(existing?.tomorrowOneThingId ?? null)
-  const candidates = s.tasks.filter((t) => t.status === 'todo' || t.status === 'in_progress')
-  const tomorrowTitle = s.tasks.find((t) => t.id === tomorrowId)?.title ?? null
-  const summary = debriefSummary(achievements, mood, oneThing?.status === 'done', tomorrowTitle)
+  const [intention, setIntention] = useState(existing?.tomorrowIntention ?? '')
+  const [mission, setMission] = useState(existing?.tomorrowMission ?? '')
+  const summary = debriefSummary(achievements, mood, oneThing?.status === 'done', mission.trim() || intention.trim() || null)
 
   const finish = () => {
-    s.saveDebrief({ achievements: [...achievements, ...(extra.trim() ? [extra.trim()] : [])], mood, reflection, tomorrowOneThingId: tomorrowId, summary })
+    s.saveDebrief({ achievements: [...achievements, ...(extra.trim() ? [extra.trim()] : [])], mood, reflection, tomorrowOneThingId: null, tomorrowIntention: intention.trim(), tomorrowMission: mission.trim(), summary })
     toast(`บันทึกแล้ว ฝันดีนะ 🌙`, 'xp')
     nav('/')
   }
 
   return (
     <div className="mx-auto max-w-xl">
-      <PageHeader eyebrow={`Evening Debrief · ${step + 1}/3`} title={['อะไรขยับไปข้างหน้าวันนี้?', 'รู้สึกอย่างไร?', 'อะไรสำคัญสำหรับพรุ่งนี้?'][step]} back />
+      <PageHeader eyebrow={`Evening Debrief · ${step + 1}/3`} title={['อะไรขยับไปข้างหน้าวันนี้?', 'รู้สึกอย่างไร?', 'สิ่งที่อยากให้เกิด / ภารกิจสำคัญของวันพรุ่งนี้'][step]} back />
       {step === 0 && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
@@ -82,14 +81,14 @@ export function EveningPage() {
       )}
       {step === 2 && (
         <div className="space-y-4">
-          <div className="glass max-h-60 overflow-y-auto rounded-3xl p-2">
-            {candidates.map((t) => (
-              <button key={t.id} className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm ${tomorrowId === t.id ? 'bg-plum text-white' : 'hover:bg-white/50'}`} onClick={() => setTomorrowId(tomorrowId === t.id ? null : t.id)}>
-                <span>{t.title}</span>
-                <span className="text-xs opacity-70">{t.estimatedMinutes}′</span>
-              </button>
-            ))}
-          </div>
+          <label className="block">
+            <span className="label mb-2 block">สิ่งที่อยากให้เกิดพรุ่งนี้</span>
+            <textarea className="field" rows={3} placeholder="เช่น อยากให้พรุ่งนี้เป็นวันที่ใจสงบ ได้คุยกับลูกค้าใหม่" value={intention} onChange={(e) => setIntention(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label mb-2 block">ภารกิจสำคัญของวันพรุ่งนี้</span>
+            <input className="field" placeholder="เช่น ส่ง proposal ให้ลูกค้า" value={mission} onChange={(e) => setMission(e.target.value)} />
+          </label>
           <div className="glass flex items-start gap-3 rounded-[1.5rem] p-4">
             <Avatar id="j" size={44} />
             <p className="text-sm">{summary}</p>
