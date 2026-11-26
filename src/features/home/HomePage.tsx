@@ -10,6 +10,8 @@ import { homeMessage } from '../../engine/companions'
 import { orbStage, totals } from '../../engine/rewards'
 import { COMPANIONS } from '../../data/seed'
 import { CoreNudge } from '../core/CoreNudge'
+import { FocusCountdown } from './FocusCountdown'
+import { useLiveMinutesLeft } from '../../hooks/useFocusClock'
 import { daysBetween, greeting, hhmmToMin, thaiShortDate } from '../../utils/date'
 
 export function HomePage() {
@@ -38,6 +40,21 @@ export function HomePage() {
     sleepMin: hhmmToMin(s.profile.preferences.sleepTime),
     giftReady: !!gift?.unlocked && !gift.revealedRewardId,
   })
+  // a running/paused focus session on today's One Thing drives a live countdown
+  const oneFocus = oneThing && s.focus && s.focus.taskId === oneThing.id && oneThing.status !== 'done' ? s.focus : null
+  const liveMin = useLiveMinutesLeft(oneFocus)
+  const msgText =
+    oneFocus && liveMin !== null && msg.companionId === 'spark'
+      ? liveMin > 0
+        ? `อีกแค่ ${liveMin} นาที เรามาทำภารกิจนี้ให้ขยับไปอีกขั้นกันไหม?`
+        : `เลยเวลาที่วางไว้ ${-liveMin} นาทีแล้ว ทำต่อได้เลย เสร็จเมื่อไหร่กดเสร็จสิ้นนะ`
+      : msg.text
+  const openOneThing = () => {
+    if (!oneThing) return
+    // resume the existing session instead of restarting the timer
+    if (s.focus?.taskId !== oneThing.id) s.startFocus(oneThing.id, oneThing.title, Math.max(5, oneThing.estimatedMinutes - oneThing.actualMinutes))
+    nav('/focus')
+  }
   const unfinished = s.tasks.filter((t) => t.status === 'in_progress' && t.id !== oneThing?.id)
   const evening = nowMin >= 18 * 60
 
@@ -83,7 +100,7 @@ export function HomePage() {
         <Avatar id={msg.companionId} size={48} />
         <div className="min-w-0 flex-1">
           <p className="text-[11px] text-soft">{COMPANIONS[msg.companionId].name} · {COMPANIONS[msg.companionId].roleTh}</p>
-          <p className="text-[15px] leading-snug">{msg.text}</p>
+          <p className="text-[15px] leading-snug">{msgText}</p>
         </div>
         {msg.action && (
           <button className="btn btn-soft shrink-0 !px-3 !py-2 text-xs" onClick={onMsgAction}>
@@ -101,16 +118,12 @@ export function HomePage() {
           <div className="mt-1 flex items-center justify-between gap-3">
             <p className={`text-lg ${oneThing.status === 'done' ? 'line-through opacity-60' : ''}`}>{oneThing.title}</p>
             {oneThing.status !== 'done' && (
-              <button
-                className="btn btn-primary shrink-0 !px-4"
-                onClick={() => {
-                  s.startFocus(oneThing.id, oneThing.title, Math.max(5, oneThing.estimatedMinutes - oneThing.actualMinutes))
-                  nav('/focus')
-                }}
-                aria-label="เริ่มโฟกัส One Thing"
-              >
-                <Play size={16} />
-              </button>
+              <div className="flex shrink-0 items-center gap-3">
+                {oneFocus && <FocusCountdown focus={oneFocus} className="text-2xl" />}
+                <button className="btn btn-primary !px-4" onClick={openOneThing} aria-label={oneFocus ? 'ไปที่หน้าโฟกัส' : 'เริ่มโฟกัส One Thing'}>
+                  <Play size={16} />
+                </button>
+              </div>
             )}
           </div>
         </section>
@@ -123,12 +136,7 @@ export function HomePage() {
           icon={Play}
           label="Continue One Thing"
           disabled={!oneThing || oneThing.status === 'done'}
-          onClick={() => {
-            if (!oneThing) return
-            if (s.focus?.taskId === oneThing.id) return nav('/focus')
-            s.startFocus(oneThing.id, oneThing.title, Math.max(5, oneThing.estimatedMinutes - oneThing.actualMinutes))
-            nav('/focus')
-          }}
+          onClick={openOneThing}
         />
         <Quick icon={Sparkles} label="I Have a Moment" onClick={() => setOpp(true)} />
         <Quick icon={LifeBuoy} label="Rescue Mode" onClick={() => setRescue(true)} />
@@ -136,8 +144,8 @@ export function HomePage() {
 
       {s.focus && (
         <Link to="/focus" className="glass mt-3 flex items-center justify-between rounded-full px-5 py-3 text-sm">
-          <span>⏱ กำลังโฟกัส: {s.focus.title}</span>
-          <ChevronRight size={16} />
+          <span className="truncate">⏱ กำลังโฟกัส: {s.focus.title}</span>
+          <span className="flex shrink-0 items-center gap-2"><FocusCountdown focus={s.focus} /><ChevronRight size={16} /></span>
         </Link>
       )}
 
