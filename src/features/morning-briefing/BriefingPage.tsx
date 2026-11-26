@@ -10,6 +10,7 @@ import { useToday } from '../../hooks/useToday'
 import { recommend } from '../../engine/recommendations'
 import { COMPANIONS, MISSION_META } from '../../data/seed'
 import type { Circumstance, Mood } from '../../types'
+import { BriefingView } from '../attention/BriefingView'
 
 export const MOODS: { id: Mood; emoji: string; label: string }[] = [
   { id: 'great', emoji: '🤩', label: 'ดีมาก' },
@@ -78,7 +79,7 @@ export function BriefingPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <PageHeader eyebrow={`Morning Briefing · ${step + 1}/3`} title={['Energy Check', "Today's Reality", "Today's One Thing"][step]} back />
+      <PageHeader eyebrow={`Morning Briefing · ${step + 1}/4`} title={['Energy Check', "Today's Reality", 'Your Briefing', "Today's One Thing"][step]} back />
 
       {step === 0 && (
         <div className="space-y-6">
@@ -130,12 +131,32 @@ export function BriefingPage() {
           </div>
           <div className="flex gap-2">
             <button className="btn btn-ghost" onClick={() => setStep(0)}>ย้อนกลับ</button>
-            <button className="btn btn-primary flex-1" onClick={() => setStep(2)}>ดู One Thing <ArrowRight size={16} /></button>
+            <button className="btn btn-primary flex-1" onClick={() => setStep(2)}>ดู Briefing <ArrowRight size={16} /></button>
           </div>
         </div>
       )}
 
       {step === 2 && (
+        <div className="space-y-5">
+          <BriefingView energy={energy} minutes={minutes} reality={reality} />
+          <div className="flex gap-2">
+            <button className="btn btn-ghost" onClick={() => setStep(1)}>ย้อนกลับ</button>
+            <button className="btn btn-primary flex-1" onClick={() => setStep(3)}>เลือก One Thing ส่วนตัว <ArrowRight size={16} /></button>
+          </div>
+          <button
+            className="btn btn-soft w-full"
+            onClick={() => {
+              s.saveCheckIn({ energy, mood, sleepDuration: sleep, availableMinutes: minutes, circumstances: reality, completedAt: s.now().toISOString() })
+              toast('บันทึกเช็กอินแล้ว ✨')
+              nav('/')
+            }}
+          >
+            <Check size={16} /> บันทึกเช็กอินแล้วไปหน้าหลัก
+          </button>
+        </div>
+      )}
+
+      {step === 3 && (
         <div className="space-y-5">
           <TimeChips value={minutes} onChange={(m) => { setMinutes(m); setPickId(null) }} />
           {chosen ? (

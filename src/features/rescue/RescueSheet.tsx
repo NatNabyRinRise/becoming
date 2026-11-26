@@ -9,6 +9,8 @@ import { useUI } from '../../store/useUI'
 import { useToday } from '../../hooks/useToday'
 import { buildRescuePlan, RESCUE_REASONS, snapshotPlan } from '../../engine/scheduling/rescue'
 import type { RescuePlan, RescueReason } from '../../types'
+import { RescueAttention, useRescueAttention } from '../attention/RescueAttention'
+import { delayItems } from '../../orchestration/useOrchestration'
 
 export function RescueSheet() {
   const open = useUI((s) => s.rescueOpen)
@@ -51,23 +53,19 @@ function RescueFlow({ onDone }: { onDone: () => void }) {
     })
   }, [step, reason, minutes, energy, date, nowMin, s.routines, s.dayLogs, s.tasks, s.settings.energyThresholds, checkIn, s.profile.preferences.missionPriorities, primary])
 
+  // v0.4: J's attention rescue (company work) alongside the routine rescue
+  const attn = useRescueAttention(step >= 3 ? minutes : null, energy)
+
   const confirm = () => {
     if (!plan || reason === null || minutes === null) return
     const prev = snapshotPlan(s.routines, s.dayLogs[date] ?? {}, s.tasks, checkIn?.oneThingId ?? null)
     s.confirmRescue({ localDate: date, reason, remainingMinutes: minutes, remainingEnergy: energy, previousPlan: prev, proposedPlan: plan })
+    if (attn && attn.delay.length > 0) delayItems(attn.delay)
     toast('ปรับแผนแล้ว เปลี่ยนแผน ไม่ใช่เปลี่ยนความฝัน 🌙')
     onDone()
   }
-
-  const addSuggestion = () => {
-    if (!plan) return
-    const exists = s.tasks.find((t) => t.title === plan.oneThingTitle && t.status !== 'done')
-    const t = exists ?? s.addTask({ title: plan.oneThingTitle, missionId: 'empire', estimatedMinutes: plan.oneThingMinutes, kind: 'business', energyRequirement: 'low' })
-    const prev = snapshotPlan(s.routines, s.dayLogs[date] ?? {}, s.tasks, checkIn?.oneThingId ?? null)
-    s.confirmRescue({ localDate: date, reason: reason!, remainingMinutes: minutes!, remainingEnergy: energy, previousPlan: prev, proposedPlan: { ...plan, oneThingId: t.id, suggestion: false } })
-    toast('ปรับแผนแล้ว')
-    onDone()
-  }
+  // Must from J: start it right away (a micro step stays a suggestion, never a new task)
+  const mustStart = attn?.mustMicro ?? (attn?.must ? { title: attn.must.title, minutes: attn.must.minutes } : null)
 
   return (
     <div className="space-y-5">
@@ -127,6 +125,7 @@ function RescueFlow({ onDone }: { onDone: () => void }) {
 
       {step >= 3 && plan && (
         <div className="space-y-4">
+          {attn && <RescueAttention plan={attn} />}
           <section className="rounded-3xl bg-white/60 p-4">
             <p className="label mb-1 flex items-center gap-1.5"><Target size={14} /> One Thing ใหม่</p>
             <p className="text-lg">{plan.oneThingTitle}</p>
@@ -161,10 +160,18 @@ function RescueFlow({ onDone }: { onDone: () => void }) {
           </button>
           <p className="text-xs text-soft">ยังไม่มีอะไรเปลี่ยนจนกว่าเธอจะกดยืนยัน งานที่ทำเสร็จและเวลาโฟกัสที่บันทึกไว้จะอยู่ครบ</p>
           <div className="flex flex-col gap-2 sm:flex-row">
-            {plan.suggestion && plan.oneThingMinutes > 0 && plan.oneThingTitle.startsWith('ขั้นแรก') ? (
-              <button className="btn btn-primary flex-1" onClick={addSuggestion}>เพิ่มเป็นงานและยืนยัน</button>
-            ) : (
-              <button className="btn btn-primary flex-1" onClick={confirm}>ยืนยันแผนใหม่</button>
+            <button className="btn btn-primary flex-1" onClick={confirm}>ยืนยันแผนใหม่</button>
+            {!plan.oneThingId && mustStart && mustStart.minutes > 0 && (
+              <button
+                className="btn btn-soft flex-1"
+                onClick={() => {
+                  confirm()
+                  s.startFocus(null, mustStart.title, Math.min(Math.max(5, mustStart.minutes), Math.max(5, minutes ?? 5)))
+                  nav('/focus')
+                }}
+              >
+                ยืนยันและเริ่ม Must
+              </button>
             )}
             {plan.oneThingId && (
               <button

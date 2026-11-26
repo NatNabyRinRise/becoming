@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
-import { Briefcase, BookOpen, Gift, Moon, Settings, CalendarCheck, Target, FlaskConical, Timer, ChevronRight, Brain, Camera, Cloud } from 'lucide-react'
+import { Briefcase, BookOpen, Gift, Moon, Settings, CalendarCheck, Target, FlaskConical, Timer, ChevronRight, Brain, Camera, Cloud, Link2 } from 'lucide-react'
 import { PageHeader } from '../../components/ui/controls'
 import { Orb } from '../../components/graphics/Orb'
 import { useStore } from '../../store/useStore'
 import { level, orbStage, totals } from '../../engine/rewards'
 
 const LINKS = [
+  { to: '/link', label: 'AI Company Link', th: 'แหล่งงาน ส่ง Feedback กลับ และ Weekly CEO Review', icon: Link2 },
   { to: '/core', label: 'Intelligence Core', th: 'ความจำ คำแนะนำ และการเรียนรู้ของทีม', icon: Brain },
   { to: '/capture', label: 'อ่านจากภาพ', th: 'ถ่ายรูป/แคปหน้าจอ แล้วให้ทีมบันทึกให้', icon: Camera },
   { to: '/account', label: 'Account & Sync', th: 'เข้าสู่ระบบ ใช้ได้หลายเครื่อง', icon: Cloud },

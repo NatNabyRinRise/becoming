@@ -1,0 +1,14 @@
+{
+  "source": "life_os",
+  "defaultFocusMinutes": 60,
+  "items": [
+    { "id": "life-1", "kind": "family", "title": "เวลาเล่นกับลูก (ไม่มีมือถือ)", "minutes": 30, "time": "17:30", "essential": true, "streak": 6, "note": "" },
+    { "id": "life-2", "kind": "habit", "title": "เดินยืดเส้น 10 นาที", "minutes": 10, "time": null, "essential": false, "streak": 3, "note": "" },
+    { "id": "life-3", "kind": "recovery", "title": "พักสายตา + ดื่มน้ำ", "minutes": 5, "time": null, "essential": false, "streak": 0, "note": "" },
+    { "id": "life-4", "kind": "routine", "title": "เขียน Journal 3 บรรทัดก่อนนอน", "minutes": 5, "time": "21:30", "essential": false, "streak": 9, "note": "" },
+    { "id": "life-5", "kind": "commitment", "title": "โทรหาแม่", "minutes": 15, "time": null, "essential": false, "streak": 0, "note": "สัญญาไว้ว่าจะโทรทุกวันพฤหัส" }
+  ],
+  "constraints": [
+    { "id": "lc-1", "title": "รับลูกที่เนอสเซอรี่", "from": "15:30", "to": "16:15", "minutes": 45 }
+  ]
+}

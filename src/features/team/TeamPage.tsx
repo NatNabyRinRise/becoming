@@ -12,6 +12,7 @@ import { recommend } from '../../engine/recommendations'
 import { COMPANION_TIPS } from '../../engine/companions'
 import { COMPANIONS, COMPANION_ORDER } from '../../data/seed'
 import type { CompanionId, Task } from '../../types'
+import { learningSignals } from '../../orchestration/roles/nexus'
 
 interface Advice {
   text: string
@@ -26,6 +27,7 @@ function useAdvice(skips: Record<CompanionId, string[]>): Record<CompanionId, Ad
   const s = useStore()
   const { checkIn, oneThing } = useToday()
   const follow = useFollowUps()
+  const orchestration = s.orchestration
   const energy = checkIn?.energy ?? 60
   const minutes = checkIn?.availableMinutes ?? 30
   const base = { thresholds: s.settings.energyThresholds, missionPriorities: s.profile.preferences.missionPriorities, primaryProjectId: s.projects.find((p) => p.isPrimaryBusiness)?.id ?? null }
@@ -72,15 +74,21 @@ function useAdvice(skips: Record<CompanionId, string[]>): Record<CompanionId, Ad
           ? { text: `ภารกิจ 5 นาที: "${sparkRec.task.title}" ลุยไหม?`, context: 'Micro-challenge', task: sparkRec.task, minutes: Math.min(5, sparkRec.minutes), followUpKey: null }
           : { text: 'ทุกก้าวเล็ก ๆ นับหมด วันนี้เธอทำได้ดีแล้ว ✨', context: '', task: null, minutes: 0, followUpKey: null }
       })(),
+      nexus: (() => {
+        const sig = learningSignals(orchestration.events)
+        return sig.length
+          ? { text: `สิ่งที่ฉันเรียนรู้จากคำตอบของเธอ: ${sig.join(' · ')}`, context: 'Feedback ทั้งหมดถูกเก็บไว้ส่งกลับ AI Company', task: null, minutes: 0, followUpKey: null }
+          : { text: 'เมื่อเธอตอบ Review / Decision ฉันจะจำไว้ และเตือนเมื่อเรื่องคล้ายกันกลับมา', context: '', task: null, minutes: 0, followUpKey: null }
+      })(),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.tasks, energy, minutes, oneThing, follow, skips, checkIn])
+  }, [s.tasks, energy, minutes, oneThing, follow, skips, checkIn, orchestration])
 }
 
 export function TeamPage() {
   const [open, setOpen] = useState<CompanionId | null>(null)
   const [view, setView] = useState<'orbit' | 'list'>('orbit')
-  const [skips, setSkips] = useState<Record<CompanionId, string[]>>({ j: [], atlas: [], muse: [], bloom: [], spark: [] })
+  const [skips, setSkips] = useState<Record<CompanionId, string[]>>({ j: [], atlas: [], muse: [], bloom: [], spark: [], nexus: [] })
   const [hidden, setHidden] = useState<CompanionId[]>([])
   const advice = useAdvice(skips)
 
@@ -107,7 +115,7 @@ export function TeamPage() {
             <Orb size={130} rings={false} />
           </div>
           {COMPANION_ORDER.map((id, i) => {
-            const a = (-90 + i * 72) * (Math.PI / 180)
+            const a = (-90 + i * (360 / COMPANION_ORDER.length)) * (Math.PI / 180)
             const x = 50 + 37 * Math.cos(a)
             const y = 50 + 37 * Math.sin(a)
             return (

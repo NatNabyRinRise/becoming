@@ -8,6 +8,7 @@ const STYLE: Record<CompanionId, { hair: string; skin: string; outfit: string; a
   muse: { hair: '#7a4a6e', skin: '#f8dccb', outfit: '#d9a6c4', accent: '#fff0f6', hairShape: 'wave' },
   bloom: { hair: '#4a3a2e', skin: '#f3d2b8', outfit: '#9cc5b0', accent: '#eaf6ee', hairShape: 'bun' },
   spark: { hair: '#c98a2e', skin: '#f6d6bc', outfit: '#e9c27a', accent: '#fff6e0', hairShape: 'spiky' },
+  nexus: { hair: '#2e3f5c', skin: '#efd0b6', outfit: '#8fb3d9', accent: '#e6f1fb', hairShape: 'short' },
 }
 
 export function Avatar({ id, size = 56, ring = true }: { id: CompanionId; size?: number; ring?: boolean }) {

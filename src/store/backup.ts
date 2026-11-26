@@ -110,6 +110,16 @@ export function validateData(input: unknown): ImportPreview {
     if (migrated[k] && typeof migrated[k] === 'object') result[k] = { ...(base[k] as object), ...(migrated[k] as object) }
   }
   if (Array.isArray(migrated.weekly)) result.weekly = migrated.weekly
+  const orch = migrated.orchestration as Record<string, unknown> | undefined
+  if (orch && typeof orch === 'object') {
+    result.orchestration = {
+      ...base.orchestration,
+      events: Array.isArray(orch.events) ? orch.events.filter((e) => e && typeof e === 'object' && 'payload' in e && 'id' in e) : [],
+      suggestions: Array.isArray(orch.suggestions) ? orch.suggestions : [],
+      snoozed: orch.snoozed && typeof orch.snoozed === 'object' ? orch.snoozed : {},
+      lastSentAt: typeof orch.lastSentAt === 'string' ? orch.lastSentAt : null,
+    }
+  }
   result.lastActiveDate = typeof migrated.lastActiveDate === 'string' ? migrated.lastActiveDate : null
   result.focus = migrated.focus && typeof migrated.focus === 'object' && 'startedAt' in (migrated.focus as object) ? migrated.focus : null
   result.comeback = null

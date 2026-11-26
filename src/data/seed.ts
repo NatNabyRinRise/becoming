@@ -59,9 +59,18 @@ export const COMPANIONS: Record<CompanionId, Companion> = {
     avatar: 'spark',
     color: '#E9C27A',
   },
+  nexus: {
+    id: 'nexus',
+    name: 'Nexus',
+    role: 'Intelligence & Memory',
+    roleTh: 'ความจำและบริบท',
+    personality: 'ช่างจำ เชื่อมโยงเก่ง อ้างอิงหลักฐาน',
+    avatar: 'nexus',
+    color: '#8FB3D9',
+  },
 }
 
-export const COMPANION_ORDER: CompanionId[] = ['j', 'atlas', 'muse', 'bloom', 'spark']
+export const COMPANION_ORDER: CompanionId[] = ['j', 'atlas', 'muse', 'bloom', 'spark', 'nexus']
 
 export const MISSION_META: Record<MissionId, { title: string; titleTh: string; color: string; companion: CompanionId }> = {
   influence: { title: 'Build My Influence', titleTh: 'สร้างตัวตนและอิทธิพล', color: '#D9A6C4', companion: 'muse' },

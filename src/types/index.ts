@@ -6,7 +6,7 @@ export type LocalDate = string // YYYY-MM-DD in the user's timezone
 export type ISOTime = string // full ISO timestamp
 
 export type MissionId = 'influence' | 'people' | 'empire' | 'freedom' | 'life'
-export type CompanionId = 'j' | 'atlas' | 'muse' | 'bloom' | 'spark'
+export type CompanionId = 'j' | 'atlas' | 'muse' | 'bloom' | 'spark' | 'nexus'
 export type Priority = 'low' | 'medium' | 'high'
 export type EnergyLevel = 'low' | 'medium' | 'high'
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'deferred' | 'blocked' | 'archived'
