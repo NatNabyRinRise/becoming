@@ -53,6 +53,7 @@ export function OnboardingPage() {
             <h1 className="mt-4 text-3xl font-light">Your personal universe</h1>
             <p className="mt-3 text-soft">You don't have to do everything.<br />Just become who you want to be.</p>
             <input className="field mt-8 text-center" placeholder="อยากให้เราเรียกเธอว่าอะไร" value={name} onChange={(e) => setName(e.target.value)} aria-label="ชื่อ" />
+            <button className="mt-4 text-sm text-soft underline underline-offset-4" onClick={() => nav('/account')}>เคยใช้แล้ว? เข้าสู่ระบบเพื่อดึงข้อมูลเดิม</button>
           </div>
         )}
         {step === 1 && (

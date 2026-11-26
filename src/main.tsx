@@ -9,6 +9,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+// Ask the browser to keep our localStorage (it may otherwise be cleared under storage pressure)
+void navigator.storage?.persist?.().catch(() => {})
+
 // Offline shell (production only; dev server stays uncached)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
