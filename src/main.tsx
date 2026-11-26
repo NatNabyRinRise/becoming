@@ -16,4 +16,25 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       /* PWA is optional; the app works without it */
     })
   })
+  // A home-screen app is usually resumed, not reloaded, so it would keep running
+  // an old build. When the app comes back to the foreground, compare our bundle
+  // with the one the live index.html points to, and reload once if it changed.
+  const bundleOf = (html: string) => html.match(/assets\/index-[\w-]+\.js/)?.[0] ?? null
+  const current = bundleOf(document.documentElement.outerHTML)
+  let checking = false
+  const checkForUpdate = async () => {
+    if (checking || !current || document.visibilityState !== 'visible' || !navigator.onLine) return
+    checking = true
+    try {
+      const res = await fetch('./index.html', { cache: 'no-store' })
+      const latest = res.ok ? bundleOf(await res.text()) : null
+      if (latest && latest !== current) window.location.reload()
+    } catch {
+      /* offline or blocked: keep the running build */
+    } finally {
+      checking = false
+    }
+  }
+  document.addEventListener('visibilitychange', checkForUpdate)
+  window.addEventListener('focus', checkForUpdate)
 }
