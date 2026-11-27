@@ -2,12 +2,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { App } from './app/App'
+import { consumeAuthRedirect } from './sync/supabase'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Read a login link's tokens before the router can rewrite the URL.
+const authRedirect = consumeAuthRedirect().catch((e) => ({ kind: 'error' as const, message: e instanceof Error ? e.message : String(e) }))
+void authRedirect.then((r) => {
+  if (r.kind === 'error') sessionStorage.setItem('becoming-auth-error', r.message)
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})
 
 // Ask the browser to keep our localStorage (it may otherwise be cleared under storage pressure)
 void navigator.storage?.persist?.().catch(() => {})

@@ -1,19 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Cloud, CloudOff, LogOut, RefreshCw, Mail, KeyRound } from 'lucide-react'
 import { PageHeader, Card, Segmented } from '../../components/ui/controls'
 import { Sheet } from '../../components/ui/Sheet'
 import { useUI } from '../../store/useUI'
 import { useAuth } from '../../sync/useAuth'
-import { resolveConflict, sendMagicLink, signIn, signOut, signUp, syncNow } from '../../sync/engine'
+import { resolveConflict, sendMagicLink, sendPasswordReset, setPassword, signIn, signOut, signUp, syncNow, verifyEmailCode } from '../../sync/engine'
 import { buildConfig, checkConfig, getConfig, saveRuntimeConfig } from '../../sync/supabase'
 
 const SYNC_TH = { idle: 'รอซิงก์', syncing: 'กำลังซิงก์…', synced: 'ซิงก์แล้ว', offline: 'ออฟไลน์ (จะซิงก์เมื่อออนไลน์)', error: 'ซิงก์ไม่สำเร็จ' } as const
 
 export function AccountPage() {
   const a = useAuth()
+  const [linkErr, setLinkErr] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const m = sessionStorage.getItem('becoming-auth-error')
+      if (m) {
+        sessionStorage.removeItem('becoming-auth-error')
+        setLinkErr(m)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <PageHeader eyebrow="Account" title="บัญชีและการซิงก์" back />
+      {linkErr && <p className="rounded-2xl bg-[#f6d6d6]/70 p-3 text-sm">ลิงก์จากอีเมลใช้ไม่ได้: {linkErr} — ขอลิงก์หรือรหัสใหม่ด้านล่าง</p>}
       {a.status === 'unconfigured' && <SetupCard />}
       {a.status === 'loading' && <Card><p className="text-sm text-soft">กำลังตรวจสอบการเข้าสู่ระบบ…</p></Card>}
       {a.status === 'signedOut' && <SignInCard />}
@@ -59,6 +73,8 @@ function SignInCard() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [codeSent, setCodeSent] = useState(false)
+  const [code, setCode] = useState('')
 
   const submit = async () => {
     setBusy(true)
@@ -81,7 +97,26 @@ function SignInCard() {
     setErr(null)
     const e = await sendMagicLink(email.trim())
     if (e) setErr(e)
-    else setInfo('ส่งลิงก์เข้าสู่ระบบไปที่อีเมลแล้ว เปิดลิงก์จากเครื่องนี้ได้เลย')
+    else {
+      setCodeSent(true)
+      setInfo('ส่งอีเมลแล้ว ถ้าในอีเมลมีรหัส 6 หลัก ใส่ด้านล่างได้เลย (เหมาะกับแอปที่เปิดจากหน้าจอโฮม) หรือกดลิงก์ในอีเมลก็ได้')
+    }
+    setBusy(false)
+  }
+  const verify = async () => {
+    setBusy(true)
+    setErr(null)
+    const e = await verifyEmailCode(email.trim(), code.trim())
+    if (e) setErr(e)
+    else toast('เข้าสู่ระบบแล้ว กำลังซิงก์ข้อมูล')
+    setBusy(false)
+  }
+  const forgot = async () => {
+    setBusy(true)
+    setErr(null)
+    const e = await sendPasswordReset(email.trim())
+    if (e) setErr(e)
+    else setInfo('ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว กดลิงก์แล้วแอปจะพามาหน้าตั้งรหัสผ่านใหม่')
     setBusy(false)
   }
   const validEmail = /\S+@\S+\.\S+/.test(email)
@@ -95,7 +130,14 @@ function SignInCard() {
       {err && <p className="rounded-2xl bg-[#f6d6d6]/70 p-3 text-sm">{err}</p>}
       {info && <p className="rounded-2xl bg-white/60 p-3 text-sm">{info}</p>}
       <button className="btn btn-primary w-full" disabled={busy || !validEmail || pw.length < 6} onClick={submit}><KeyRound size={16} /> {mode === 'in' ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}</button>
-      <button className="btn btn-soft w-full" disabled={busy || !validEmail} onClick={magic}><Mail size={16} /> ส่งลิงก์เข้าสู่ระบบทางอีเมล (ไม่ต้องใช้รหัสผ่าน)</button>
+      <button className="btn btn-soft w-full" disabled={busy || !validEmail} onClick={magic}><Mail size={16} /> ส่งลิงก์ / รหัสเข้าสู่ระบบทางอีเมล (ไม่ต้องใช้รหัสผ่าน)</button>
+      {codeSent && (
+        <div className="flex gap-2">
+          <input className="field" inputMode="numeric" autoComplete="one-time-code" placeholder="รหัสจากอีเมล" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))} aria-label="รหัสจากอีเมล" />
+          <button className="btn btn-primary shrink-0" disabled={busy || code.length < 6} onClick={verify}>ยืนยัน</button>
+        </div>
+      )}
+      {mode === 'in' && <button className="w-full text-xs text-soft underline" disabled={busy || !validEmail} onClick={forgot}>ลืมรหัสผ่าน? ส่งลิงก์ตั้งรหัสใหม่</button>}
     </Card>
   )
 }
@@ -113,6 +155,7 @@ function SignedInCard() {
         {a.lastSyncedAt && ` · ล่าสุด ${new Date(a.lastSyncedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`}
       </p>
       {a.error && <p className="rounded-2xl bg-[#f6d6d6]/70 p-3 text-sm">{a.error}{/relation|does not exist|schema cache/i.test(a.error) && ' — ยังไม่ได้รัน SQL schema ใน Supabase'}</p>}
+      <SetPasswordForm />
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-soft" onClick={() => void syncNow()} disabled={a.sync === 'syncing'}><RefreshCw size={16} /> ซิงก์ตอนนี้</button>
         <button className="btn btn-ghost" onClick={() => setOutOpen(true)}><LogOut size={16} /> ออกจากระบบ</button>
@@ -126,6 +169,40 @@ function SignedInCard() {
         </div>
       </Sheet>
     </Card>
+  )
+}
+
+/** Set or change the password (after a magic link or a recovery link). */
+function SetPasswordForm() {
+  const toast = useUI((u) => u.showToast)
+  const recovery = new URLSearchParams(useLocation().search).get('setpw') === '1'
+  const [open, setOpen] = useState(recovery)
+  const [pw, setPw] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  if (!open) return <button className="text-xs text-soft underline" onClick={() => setOpen(true)}>ตั้ง / เปลี่ยนรหัสผ่าน</button>
+  const save = async () => {
+    setBusy(true)
+    setErr(null)
+    const e = await setPassword(pw)
+    setBusy(false)
+    if (e) setErr(e)
+    else {
+      setOpen(false)
+      setPw('')
+      toast('ตั้งรหัสผ่านแล้ว ใช้เข้าสู่ระบบได้ทุกเครื่อง')
+    }
+  }
+  return (
+    <div className="space-y-2 rounded-2xl bg-white/50 p-3">
+      <p className="text-sm">{recovery ? 'ตั้งรหัสผ่านใหม่' : 'ตั้ง / เปลี่ยนรหัสผ่าน'}</p>
+      <input type="password" autoComplete="new-password" className="field" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)" value={pw} onChange={(e) => setPw(e.target.value)} aria-label="รหัสผ่านใหม่" />
+      {err && <p className="rounded-2xl bg-[#f6d6d6]/70 p-3 text-sm">{err}</p>}
+      <div className="flex gap-2">
+        <button className="btn btn-primary flex-1" disabled={busy || pw.length < 6} onClick={save}>บันทึกรหัสผ่าน</button>
+        <button className="btn btn-ghost" onClick={() => setOpen(false)}>ยกเลิก</button>
+      </div>
+    </div>
   )
 }
 
