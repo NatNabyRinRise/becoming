@@ -13,13 +13,20 @@ interface Props {
 /** Bottom sheet on mobile, centered panel on larger screens. */
 export function Sheet({ open, onClose, title, children, wide }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  // Parents pass inline onClose callbacks, so it changes on every parent render
+  // (store sync, timers). Keep it in a ref so focus moves to the sheet only when it
+  // opens, and never steals focus from a field the user is typing in.
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
     window.addEventListener('keydown', onKey)
-    ref.current?.focus()
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus()
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open])
   return (
     <AnimatePresence>
       {open && (
