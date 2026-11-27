@@ -79,9 +79,38 @@ export function getSupabase(): SupabaseClient | null {
   const c = getConfig()
   if (!c) return null
   client = createClient(c.url, c.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'becoming-auth' },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'becoming-auth' },
   })
   return client
+}
+
+export type AuthRedirect = { kind: 'none' } | { kind: 'signedIn'; type: string } | { kind: 'error'; message: string }
+
+/**
+ * Handle the tokens an email link (magic link, sign-up confirm, password recovery) puts in the URL.
+ * Must run BEFORE the HashRouter renders: the router treats `#access_token=…` as a route and
+ * redirects it away, which used to lose the login. Afterwards the URL is cleaned up.
+ */
+export async function consumeAuthRedirect(): Promise<AuthRedirect> {
+  const hash = new URLSearchParams(location.hash.replace(/^#\/?/, ''))
+  const query = new URLSearchParams(location.search)
+  const err = hash.get('error_description') ?? query.get('error_description')
+  const access = hash.get('access_token')
+  const refresh = hash.get('refresh_token')
+  const code = query.get('code')
+  if (!err && !(access && refresh) && !code) return { kind: 'none' }
+  const type = hash.get('type') ?? query.get('type') ?? 'magiclink'
+  const clean = (route: string) => history.replaceState(null, '', `${location.pathname}#${route}`)
+  if (err) {
+    clean('/account')
+    return { kind: 'error', message: err.replace(/\+/g, ' ') }
+  }
+  const sb = getSupabase()
+  if (!sb) return { kind: 'none' }
+  const r = access && refresh ? await sb.auth.setSession({ access_token: access, refresh_token: refresh }) : await sb.auth.exchangeCodeForSession(code!)
+  clean(type === 'recovery' ? '/account?setpw=1' : '/account')
+  if (r.error) return { kind: 'error', message: r.error.message }
+  return { kind: 'signedIn', type }
 }
 
 /** A stable id for this browser, so we can tell which device wrote the cloud copy. */

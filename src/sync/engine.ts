@@ -286,6 +286,25 @@ export async function sendMagicLink(email: string) {
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo() } })
   return error ? thaiAuthError(error.message) : null
 }
+/** 6-digit code from the login email: lets a home-screen app sign in without leaving it. */
+export async function verifyEmailCode(email: string, token: string) {
+  const sb = getSupabase()
+  if (!sb) return 'ยังไม่ได้ตั้งค่า Supabase'
+  const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' })
+  return error ? thaiAuthError(error.message) : null
+}
+export async function sendPasswordReset(email: string) {
+  const sb = getSupabase()
+  if (!sb) return 'ยังไม่ได้ตั้งค่า Supabase'
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() })
+  return error ? thaiAuthError(error.message) : null
+}
+export async function setPassword(password: string) {
+  const sb = getSupabase()
+  if (!sb) return 'ยังไม่ได้ตั้งค่า Supabase'
+  const { error } = await sb.auth.updateUser({ password })
+  return error ? thaiAuthError(error.message) : null
+}
 export async function signOut(clearDevice: boolean) {
   const sb = getSupabase()
   await syncNow().catch(() => {})
@@ -308,5 +327,7 @@ function thaiAuthError(m: string): string {
   if (/already registered|already exists/i.test(m)) return 'อีเมลนี้สมัครแล้ว ลองเข้าสู่ระบบแทน'
   if (/password/i.test(m) && /least|short|weak/i.test(m)) return 'รหัสผ่านสั้นหรือง่ายเกินไป (อย่างน้อย 6 ตัวอักษร)'
   if (/rate limit|too many/i.test(m)) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่'
+  if (/token has expired|invalid|otp/i.test(m)) return 'รหัสหรือลิงก์หมดอายุหรือไม่ถูกต้อง ขอใหม่อีกครั้ง'
+  if (/same.*password|different from the old/i.test(m)) return 'รหัสผ่านใหม่ต้องไม่ซ้ำรหัสเดิม'
   return m
 }
